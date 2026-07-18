@@ -66,7 +66,7 @@ Database
 
 ORM
 
-- Prisma ORM 6.19
+- Prisma ORM new version
 
 Authentication
 
@@ -110,8 +110,6 @@ Deployment
 # Hard Rules
 
 Never
-
-- Never upgrade Prisma to version 7.
 - Never replace PostgreSQL.
 - Never use another ORM.
 - Never install packages without approval.

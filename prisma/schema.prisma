@@ -1,0 +1,625 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserType {
+  INTERNAL_GOVERNMENT
+  EXTERNAL_BUSINESS
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  DISABLED
+}
+
+enum SystemRoleCode {
+  SUPER_ADMIN
+  ADMIN_DINAS
+  KEPALA_DINAS
+  KEPALA_UPTD
+  KASI_PENGUJIAN
+  PETUGAS_REGISTRASI
+  PETUGAS_PENERIMAAN_SAMPEL
+  ANALIS_LAB
+  PENYELIA_LAB
+  PETUGAS_SERTIFIKASI
+  KONSULTAN_MUTU
+  PETUGAS_MONEV
+  PELAKU_USAHA
+  MITRA_BISNIS
+}
+
+enum SessionStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum TokenStatus {
+  ACTIVE
+  USED
+  REVOKED
+  EXPIRED
+}
+
+enum BusinessStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  REJECTED
+  INACTIVE
+}
+
+enum BusinessType {
+  FISH_FARMER
+  FISHER
+  PROCESSOR
+  DISTRIBUTOR
+  EXPORTER
+  MSME
+  OTHER
+}
+
+enum BusinessMembershipRole {
+  OWNER
+  ADMIN
+  QUALITY_MANAGER
+  STAFF
+  VIEWER
+}
+
+enum BusinessMembershipStatus {
+  INVITED
+  ACTIVE
+  SUSPENDED
+  LEFT
+  REVOKED
+}
+
+enum CommodityPriority {
+  PRIMARY
+  SECONDARY
+}
+
+enum LegalDocumentType {
+  NIB
+  BUSINESS_LICENSE
+  TAX_ID
+  COMPANY_DEED
+  DOMICILE_CERTIFICATE
+  HALAL_CERTIFICATE
+  QUALITY_CERTIFICATE
+  OTHER
+}
+
+enum DocumentVerificationStatus {
+  PENDING
+  VERIFIED
+  REJECTED
+  EXPIRED
+}
+
+enum ConsentType {
+  TERMS_OF_SERVICE
+  PRIVACY_POLICY
+}
+
+enum AuditAction {
+  LOGIN
+  LOGIN_FAILED
+  LOGOUT
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  APPROVE
+  REJECT
+  STATUS_CHANGE
+  PASSWORD_CHANGE
+  PASSWORD_RESET
+  EMAIL_VERIFY
+  ROLE_ASSIGN
+  ROLE_REVOKE
+  PERMISSION_CHANGE
+  SESSION_REVOKE
+}
+
+model User {
+  id                  BigInt     @id @default(autoincrement())
+  email               String     @db.VarChar(320)
+  normalizedEmail     String     @unique @map("normalized_email") @db.VarChar(320)
+  phone               String?    @db.VarChar(32)
+  normalizedPhone     String?    @unique @map("normalized_phone") @db.VarChar(32)
+  passwordHash        String     @map("password_hash") @db.VarChar(255)
+  type                UserType
+  status              UserStatus @default(PENDING_VERIFICATION)
+  emailVerifiedAt     DateTime?  @map("email_verified_at") @db.Timestamptz(3)
+  passwordChangedAt   DateTime?  @map("password_changed_at") @db.Timestamptz(3)
+  failedLoginAttempts Int        @default(0) @map("failed_login_attempts")
+  lockedUntil         DateTime?  @map("locked_until") @db.Timestamptz(3)
+  lastLoginAt         DateTime?  @map("last_login_at") @db.Timestamptz(3)
+  createdAt           DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(3)
+
+  profile                 UserProfile?
+  roles                   UserRole[]               @relation("UserRoles")
+  roleAssignmentsMade     UserRole[]               @relation("UserRoleAssigner")
+  sessions                UserSession[]
+  emailVerificationTokens EmailVerificationToken[]
+  passwordResetTokens     PasswordResetToken[]
+  businessMemberships     BusinessMember[]         @relation("BusinessMembers")
+  businessInvitationsMade BusinessMember[]         @relation("BusinessMemberInviter")
+  verifiedDocuments       BusinessLegalDocument[]  @relation("DocumentVerifier")
+  consents                UserConsent[]
+  auditLogs               AuditLog[]               @relation("AuditActor")
+
+  @@index([status, deletedAt])
+  @@index([type, status])
+  @@index([createdAt])
+  @@map("users")
+}
+
+model UserProfile {
+  id                   BigInt    @id @default(autoincrement())
+  userId               BigInt    @unique @map("user_id")
+  fullName             String    @map("full_name") @db.VarChar(160)
+  employeeNumber       String?   @map("employee_number") @db.VarChar(64)
+  positionTitle        String?   @map("position_title") @db.VarChar(160)
+  agencyId             BigInt?   @map("agency_id")
+  organizationalUnitId BigInt?   @map("organizational_unit_id")
+  avatarStorageKey     String?   @map("avatar_storage_key") @db.VarChar(500)
+  createdAt            DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt            DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  user               User                @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  agency             GovernmentAgency?   @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  organizationalUnit OrganizationalUnit? @relation(fields: [organizationalUnitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([fullName])
+  @@index([employeeNumber])
+  @@index([agencyId])
+  @@index([organizationalUnitId])
+  @@map("user_profiles")
+}
+
+model Role {
+  id          BigInt         @id @default(autoincrement())
+  code        SystemRoleCode @unique
+  name        String         @db.VarChar(120)
+  description String?        @db.Text
+  isActive    Boolean        @default(true) @map("is_active")
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@index([isActive, deletedAt])
+  @@map("roles")
+}
+
+model Permission {
+  id          BigInt    @id @default(autoincrement())
+  code        String    @unique @db.VarChar(160)
+  resource    String    @db.VarChar(80)
+  action      String    @db.VarChar(80)
+  description String?   @db.Text
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  roles RolePermission[]
+
+  @@unique([resource, action])
+  @@index([isActive, deletedAt])
+  @@map("permissions")
+}
+
+model UserRole {
+  id           BigInt    @id @default(autoincrement())
+  userId       BigInt    @map("user_id")
+  roleId       BigInt    @map("role_id")
+  assignedById BigInt?   @map("assigned_by_id")
+  assignedAt   DateTime  @default(now()) @map("assigned_at") @db.Timestamptz(3)
+  expiresAt    DateTime? @map("expires_at") @db.Timestamptz(3)
+  revokedAt    DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user       User  @relation("UserRoles", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  role       Role  @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  assignedBy User? @relation("UserRoleAssigner", fields: [assignedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId, revokedAt, expiresAt])
+  @@index([roleId, revokedAt])
+  @@index([assignedById])
+  @@map("user_roles")
+}
+
+model RolePermission {
+  id           BigInt   @id @default(autoincrement())
+  roleId       BigInt   @map("role_id")
+  permissionId BigInt   @map("permission_id")
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([permissionId])
+  @@map("role_permissions")
+}
+
+model UserSession {
+  id               BigInt        @id @default(autoincrement())
+  userId           BigInt        @map("user_id")
+  accessTokenHash  String        @unique @map("access_token_hash") @db.VarChar(255)
+  refreshTokenHash String        @unique @map("refresh_token_hash") @db.VarChar(255)
+  tokenFamily      String        @map("token_family") @db.VarChar(128)
+  status           SessionStatus @default(ACTIVE)
+  ipAddress        String?       @map("ip_address") @db.VarChar(64)
+  userAgent        String?       @map("user_agent") @db.VarChar(500)
+  deviceName       String?       @map("device_name") @db.VarChar(160)
+  lastUsedAt       DateTime      @default(now()) @map("last_used_at") @db.Timestamptz(3)
+  expiresAt        DateTime      @map("expires_at") @db.Timestamptz(3)
+  revokedAt        DateTime?     @map("revoked_at") @db.Timestamptz(3)
+  revokeReason     String?       @map("revoke_reason") @db.VarChar(255)
+  createdAt        DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, status])
+  @@index([tokenFamily, status])
+  @@index([expiresAt, status])
+  @@map("user_sessions")
+}
+
+model EmailVerificationToken {
+  id        BigInt      @id @default(autoincrement())
+  userId    BigInt      @map("user_id")
+  tokenHash String      @unique @map("token_hash") @db.VarChar(255)
+  status    TokenStatus @default(ACTIVE)
+  expiresAt DateTime    @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?   @map("used_at") @db.Timestamptz(3)
+  revokedAt DateTime?   @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt, status])
+  @@map("email_verification_tokens")
+}
+
+model PasswordResetToken {
+  id        BigInt      @id @default(autoincrement())
+  userId    BigInt      @map("user_id")
+  tokenHash String      @unique @map("token_hash") @db.VarChar(255)
+  status    TokenStatus @default(ACTIVE)
+  expiresAt DateTime    @map("expires_at") @db.Timestamptz(3)
+  usedAt    DateTime?   @map("used_at") @db.Timestamptz(3)
+  revokedAt DateTime?   @map("revoked_at") @db.Timestamptz(3)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([userId, status])
+  @@index([expiresAt, status])
+  @@map("password_reset_tokens")
+}
+
+model GovernmentAgency {
+  id        BigInt    @id @default(autoincrement())
+  code      String    @unique @db.VarChar(50)
+  name      String    @db.VarChar(200)
+  shortName String?   @map("short_name") @db.VarChar(80)
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  organizationalUnits OrganizationalUnit[]
+  userProfiles        UserProfile[]
+
+  @@index([name])
+  @@index([isActive, deletedAt])
+  @@map("government_agencies")
+}
+
+model OrganizationalUnit {
+  id           BigInt    @id @default(autoincrement())
+  agencyId     BigInt    @map("agency_id")
+  parentUnitId BigInt?   @map("parent_unit_id")
+  code         String    @db.VarChar(50)
+  name         String    @db.VarChar(200)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  agency       GovernmentAgency     @relation(fields: [agencyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parentUnit   OrganizationalUnit?  @relation("OrganizationalUnitHierarchy", fields: [parentUnitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  childUnits   OrganizationalUnit[] @relation("OrganizationalUnitHierarchy")
+  userProfiles UserProfile[]
+
+  @@unique([agencyId, code])
+  @@index([agencyId, isActive, deletedAt])
+  @@index([parentUnitId])
+  @@map("organizational_units")
+}
+
+model Province {
+  id        BigInt   @id @default(autoincrement())
+  code      String   @unique @db.VarChar(10)
+  name      String   @unique @db.VarChar(120)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  regencies        Regency[]
+  businessProfiles BusinessProfile[]
+
+  @@index([isActive])
+  @@map("provinces")
+}
+
+model Regency {
+  id         BigInt   @id @default(autoincrement())
+  provinceId BigInt   @map("province_id")
+  code       String   @unique @db.VarChar(10)
+  name       String   @db.VarChar(160)
+  isCity     Boolean  @default(false) @map("is_city")
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  province         Province          @relation(fields: [provinceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  businessProfiles BusinessProfile[]
+  districts        District[]
+
+  @@unique([provinceId, name])
+  @@index([provinceId, isActive])
+  @@map("regencies")
+}
+
+model District {
+  id        BigInt   @id @default(autoincrement())
+  regencyId BigInt   @map("regency_id")
+  code      String   @unique @db.VarChar(20)
+  name      String   @db.VarChar(160)
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  regency          Regency           @relation(fields: [regencyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  villages         Village[]
+  businessProfiles BusinessProfile[]
+
+  @@unique([regencyId, name])
+  @@index([regencyId, isActive])
+  @@map("districts")
+}
+
+model Village {
+  id         BigInt   @id @default(autoincrement())
+  districtId BigInt   @map("district_id")
+  code       String   @unique @db.VarChar(20)
+  name       String   @db.VarChar(160)
+  isActive   Boolean  @default(true) @map("is_active")
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  district         District          @relation(fields: [districtId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  businessProfiles BusinessProfile[]
+
+  @@unique([districtId, name])
+  @@index([districtId, isActive])
+  @@map("villages")
+}
+
+model Business {
+  id           BigInt         @id @default(autoincrement())
+  businessCode String         @unique @map("business_code") @db.VarChar(40)
+  name         String         @db.VarChar(200)
+  status       BusinessStatus @default(PENDING_VERIFICATION)
+  verifiedAt   DateTime?      @map("verified_at") @db.Timestamptz(3)
+  createdAt    DateTime       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
+
+  profile        BusinessProfile?
+  members        BusinessMember[]
+  legalDocuments BusinessLegalDocument[]
+  commodities    BusinessCommodity[]
+  auditLogs      AuditLog[]
+
+  @@index([name])
+  @@index([status, deletedAt])
+  @@index([createdAt])
+  @@map("businesses")
+}
+
+model BusinessProfile {
+  id                BigInt       @id @default(autoincrement())
+  businessId        BigInt       @unique @map("business_id")
+  businessType      BusinessType @map("business_type")
+  businessTypeOther String?      @map("business_type_other") @db.VarChar(160)
+  nib               String?      @unique @db.VarChar(32)
+  taxNumber         String?      @map("tax_number") @db.VarChar(64)
+  email             String?      @db.VarChar(320)
+  phone             String?      @db.VarChar(32)
+  addressLine       String?      @map("address_line") @db.Text
+  villageId         BigInt?      @map("village_id")
+  districtId        BigInt?      @map("district_id")
+  regencyId         BigInt       @map("regency_id")
+  provinceId        BigInt       @map("province_id")
+  postalCode        String?      @map("postal_code") @db.VarChar(10)
+  latitude          Decimal?     @db.Decimal(10, 7)
+  longitude         Decimal?     @db.Decimal(10, 7)
+  description       String?      @db.Text
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt         DateTime?    @map("deleted_at") @db.Timestamptz(3)
+
+  business Business  @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  regency  Regency   @relation(fields: [regencyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  province Province  @relation(fields: [provinceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  district District? @relation(fields: [districtId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  village  Village?  @relation(fields: [villageId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([businessType])
+  @@index([provinceId, regencyId])
+  @@index([districtId])
+  @@index([villageId])
+  @@map("business_profiles")
+}
+
+model BusinessMember {
+  id          BigInt                   @id @default(autoincrement())
+  businessId  BigInt                   @map("business_id")
+  userId      BigInt                   @map("user_id")
+  role        BusinessMembershipRole
+  status      BusinessMembershipStatus @default(INVITED)
+  invitedById BigInt?                  @map("invited_by_id")
+  invitedAt   DateTime?                @map("invited_at") @db.Timestamptz(3)
+  joinedAt    DateTime?                @map("joined_at") @db.Timestamptz(3)
+  endedAt     DateTime?                @map("ended_at") @db.Timestamptz(3)
+  createdAt   DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime?                @map("deleted_at") @db.Timestamptz(3)
+
+  business  Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  user      User     @relation("BusinessMembers", fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  invitedBy User?    @relation("BusinessMemberInviter", fields: [invitedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@unique([businessId, userId])
+  @@index([userId, status, deletedAt])
+  @@index([businessId, status, role])
+  @@index([invitedById])
+  @@map("business_members")
+}
+
+model BusinessLegalDocument {
+  id                 BigInt                     @id @default(autoincrement())
+  businessId         BigInt                     @map("business_id")
+  type               LegalDocumentType
+  documentNumber     String?                    @map("document_number") @db.VarChar(120)
+  documentName       String                     @map("document_name") @db.VarChar(200)
+  storageKey         String                     @map("storage_key") @db.VarChar(500)
+  originalFileName   String                     @map("original_file_name") @db.VarChar(255)
+  mimeType           String                     @map("mime_type") @db.VarChar(120)
+  fileSizeBytes      BigInt                     @map("file_size_bytes")
+  checksum           String                     @db.VarChar(128)
+  issuedAt           DateTime?                  @map("issued_at") @db.Date
+  expiresAt          DateTime?                  @map("expires_at") @db.Date
+  verificationStatus DocumentVerificationStatus @default(PENDING) @map("verification_status")
+  verifiedById       BigInt?                    @map("verified_by_id")
+  verifiedAt         DateTime?                  @map("verified_at") @db.Timestamptz(3)
+  rejectionReason    String?                    @map("rejection_reason") @db.Text
+  createdAt          DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?                  @map("deleted_at") @db.Timestamptz(3)
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  verifiedBy User?    @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([businessId, type, deletedAt])
+  @@index([verificationStatus, createdAt])
+  @@index([documentNumber])
+  @@index([verifiedById])
+  @@map("business_legal_documents")
+}
+
+model Commodity {
+  id             BigInt    @id @default(autoincrement())
+  code           String    @unique @db.VarChar(40)
+  name           String    @unique @db.VarChar(120)
+  scientificName String?   @map("scientific_name") @db.VarChar(180)
+  isOther        Boolean   @default(false) @map("is_other")
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  businesses BusinessCommodity[]
+
+  @@index([isActive, deletedAt])
+  @@map("commodities")
+}
+
+model BusinessCommodity {
+  id               BigInt            @id @default(autoincrement())
+  businessId       BigInt            @map("business_id")
+  commodityId      BigInt            @map("commodity_id")
+  priority         CommodityPriority @default(SECONDARY)
+  otherDescription String?           @map("other_description") @db.VarChar(200)
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt        DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt        DateTime?         @map("deleted_at") @db.Timestamptz(3)
+
+  business  Business  @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  commodity Commodity @relation(fields: [commodityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([businessId, commodityId])
+  @@index([commodityId])
+  @@index([businessId, priority, deletedAt])
+  @@map("business_commodities")
+}
+
+model UserConsent {
+  id              BigInt      @id @default(autoincrement())
+  userId          BigInt      @map("user_id")
+  type            ConsentType
+  documentVersion String      @map("document_version") @db.VarChar(40)
+  acceptedAt      DateTime    @default(now()) @map("accepted_at") @db.Timestamptz(3)
+  withdrawnAt     DateTime?   @map("withdrawn_at") @db.Timestamptz(3)
+  ipAddress       String?     @map("ip_address") @db.VarChar(64)
+  userAgent       String?     @map("user_agent") @db.VarChar(500)
+  createdAt       DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([userId, type, documentVersion])
+  @@index([type, documentVersion])
+  @@map("user_consents")
+}
+
+model AuditLog {
+  id            BigInt      @id @default(autoincrement())
+  actorUserId   BigInt?     @map("actor_user_id")
+  businessId    BigInt?     @map("business_id")
+  action        AuditAction
+  entityType    String      @map("entity_type") @db.VarChar(100)
+  entityId      String?     @map("entity_id") @db.VarChar(100)
+  ipAddress     String?     @map("ip_address") @db.VarChar(64)
+  userAgent     String?     @map("user_agent") @db.VarChar(500)
+  previousValue Json?       @map("previous_value")
+  newValue      Json?       @map("new_value")
+  metadata      Json?
+  occurredAt    DateTime    @default(now()) @map("occurred_at") @db.Timestamptz(3)
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  actorUser User?     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  business  Business? @relation(fields: [businessId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([actorUserId, occurredAt])
+  @@index([businessId, occurredAt])
+  @@index([entityType, entityId, occurredAt])
+  @@index([action, occurredAt])
+  @@index([occurredAt])
+  @@map("audit_logs")
+}

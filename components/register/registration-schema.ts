@@ -56,7 +56,9 @@ export const registrationSchema = z
     confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi."),
     businessName: z.string().trim().min(3, "Nama usaha minimal 3 karakter."),
     businessType: z.enum(businessTypes, { message: "Pilih jenis usaha." }),
+    businessTypeOther: z.string().trim().max(200, "Penjelasan maksimal 200 karakter.").optional(),
     commodity: z.enum(commodities, { message: "Pilih komoditas utama." }),
+    commodityOther: z.string().trim().max(200, "Penjelasan maksimal 200 karakter.").optional(),
     region: z.enum(lampungRegions, { message: "Pilih kabupaten atau kota." }),
     province: z.literal("Lampung"),
     terms: z.boolean().refine((accepted) => accepted, {
@@ -66,6 +68,14 @@ export const registrationSchema = z
   .refine((data) => data.password === data.confirmPassword, {
     message: "Konfirmasi password tidak sama.",
     path: ["confirmPassword"],
+  })
+  .refine((data) => data.businessType !== "Lainnya" || Boolean(data.businessTypeOther), {
+    message: "Jelaskan jenis usaha lainnya.",
+    path: ["businessTypeOther"],
+  })
+  .refine((data) => data.commodity !== "Lainnya" || Boolean(data.commodityOther), {
+    message: "Jelaskan komoditas lainnya.",
+    path: ["commodityOther"],
   });
 
 export type RegistrationFormValues = z.infer<typeof registrationSchema>;
