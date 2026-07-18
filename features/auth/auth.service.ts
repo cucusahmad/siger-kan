@@ -159,7 +159,15 @@ export async function getAuthenticatedUser(token: string): Promise<Authenticated
           profile: true,
           roles: {
             where: { revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] },
-            include: { role: true },
+            include: {
+              role: {
+                include: {
+                  permissions: {
+                    include: { permission: true },
+                  },
+                },
+              },
+            },
           },
           businessMemberships: {
             where: { deletedAt: null, status: BusinessMembershipStatus.ACTIVE },
@@ -181,9 +189,19 @@ export async function getAuthenticatedUser(token: string): Promise<Authenticated
   });
 
   return {
+    id: session.user.id.toString(),
     fullName: session.user.profile?.fullName ?? session.user.email,
     roles: session.user.roles.map(({ role }) => role.name),
+    roleCodes: session.user.roles.map(({ role }) => role.code),
+    permissions: [
+      ...new Set(
+        session.user.roles.flatMap(({ role }) =>
+          role.permissions.map(({ permission }) => permission.code),
+        ),
+      ),
+    ],
     businessName: session.user.businessMemberships[0]?.business.name ?? null,
+    hasBusinessMembership: session.user.businessMemberships.length > 0,
   };
 }
 
