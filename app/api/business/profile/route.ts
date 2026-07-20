@@ -9,7 +9,7 @@ export async function GET() {
   const user = await getCurrentUser();
   if (!user) return NextResponse.json({ success: false, message: "Sesi Anda telah berakhir." }, { status: 401 });
   if (!user.permissions.includes("business.read")) return NextResponse.json({ success: false, message: "Anda tidak memiliki izin untuk melihat profil usaha." }, { status: 403 });
-  const data = await getBusinessProfileData(user.id, user.permissions.includes("business.update"));
+  const data = await getBusinessProfileData(user.id, user.permissions.includes("business.update"), user.permissions.includes("business.document.upload"));
   if (!data) return NextResponse.json({ success: false, message: "Tidak ada usaha yang terhubung dengan akun Anda." }, { status: 404 });
   return NextResponse.json({ success: true, message: "Profil usaha berhasil dimuat.", data });
 }
@@ -24,7 +24,7 @@ export async function PUT(request: Request) {
   if (!parsed.success) return NextResponse.json({ success: false, message: "Periksa kembali data yang diisi.", errors: parsed.error.flatten().fieldErrors }, { status: 422 });
   try {
     await updateBusinessProfile(user.id, parsed.data, getRequestContext(request));
-    const data = await getBusinessProfileData(user.id, true);
+    const data = await getBusinessProfileData(user.id, true, user.permissions.includes("business.document.upload"));
     return NextResponse.json({ success: true, message: "Profil usaha berhasil disimpan.", data });
   } catch (error: unknown) {
     const code = error instanceof Error ? error.message : "";

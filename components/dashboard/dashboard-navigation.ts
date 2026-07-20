@@ -22,6 +22,7 @@ export interface DashboardNavigationItem {
   readonly allowedRoles?: readonly string[];
   readonly requiredPermissions?: readonly string[];
   readonly requiresBusinessMembership?: boolean;
+  readonly excludedRoles?: readonly string[];
 }
 
 export interface DashboardNavigationGroup {
@@ -37,6 +38,7 @@ export interface DashboardNavigationContext {
 }
 
 const externalRoles = ["PELAKU_USAHA"] as const;
+const adminDinasRoles = ["ADMIN_DINAS", "SUPER_ADMIN"] as const;
 
 export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
   {
@@ -48,9 +50,10 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     label: "Pelaku Usaha",
     icon: "building",
     items: [
-      { label: "Profil Usaha", href: "/dashboard/business", icon: "briefcaseBusiness", requiredPermissions: ["business.read"] },
-      { label: "Legalitas Usaha", href: "/dashboard/business/legal-documents", icon: "fileBadge", requiredPermissions: ["business.document.read"] },
-      { label: "Komoditas", href: "/dashboard/business/commodities", icon: "packageSearch", requiredPermissions: ["business.read"] },
+      { label: "Data Pelaku Usaha", href: "/dashboard/pelaku-usaha", icon: "building", allowedRoles: adminDinasRoles },
+      { label: "Profil Usaha", href: "/dashboard/business", icon: "briefcaseBusiness", requiredPermissions: ["business.read"], excludedRoles: ["ADMIN_DINAS"] },
+      { label: "Legalitas Usaha", href: "/dashboard/business/legal-documents", icon: "fileBadge", requiredPermissions: ["business.document.read"], excludedRoles: ["ADMIN_DINAS"] },
+      { label: "Komoditas", href: "/dashboard/business/commodities", icon: "packageSearch", requiredPermissions: ["business.read"], excludedRoles: ["ADMIN_DINAS"] },
     ],
   },
   {
@@ -92,6 +95,7 @@ export function isNavigationItemVisible(
   item: DashboardNavigationItem,
   context: DashboardNavigationContext,
 ): boolean {
+  if (item.excludedRoles?.some((role) => context.roleCodes.includes(role))) return false;
   if (context.roleCodes.includes("SUPER_ADMIN")) return true;
   const isAllowedByRole = item.allowedRoles?.some((role) => context.roleCodes.includes(role)) ?? false;
   const isAllowedByPermission = item.requiredPermissions?.some((permission) => context.permissions.includes(permission)) ?? false;
@@ -117,6 +121,11 @@ export function isDashboardRouteActive(pathname: string, href: string): boolean 
 
 export function getDashboardBreadcrumbs(pathname: string): readonly { readonly label: string; readonly href?: string }[] {
   if (pathname === "/dashboard") return [{ label: "Dashboard" }];
+  if (pathname.startsWith("/dashboard/pelaku-usaha/")) return [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Pelaku Usaha", href: "/dashboard" },
+    { label: "Detail Pelaku Usaha" },
+  ];
   for (const group of dashboardNavigation) {
     const item = group.items.find(({ href }) => href === pathname);
     if (item) return [
@@ -129,6 +138,7 @@ export function getDashboardBreadcrumbs(pathname: string): readonly { readonly l
 }
 
 export function getDashboardPageTitle(pathname: string): string {
+  if (pathname.startsWith("/dashboard/pelaku-usaha/")) return "Detail Pelaku Usaha";
   for (const group of dashboardNavigation) {
     const item = group.items.find(({ href }) => href === pathname);
     if (item) return item.label;

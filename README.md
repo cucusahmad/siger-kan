@@ -2,6 +2,13 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Copy `.env.example` to a local `.env` and configure the database and JWT values.
+Business documents are stored outside `public` under `PRIVATE_UPLOAD_DIR`. The
+development fallback is `./storage/private`; production requires the variable
+to be set and the directory to be mounted on a persistent, writable volume.
+Files on ephemeral or unmounted container filesystems will not survive a
+container replacement.
+
 First, run the development server:
 
 ```bash

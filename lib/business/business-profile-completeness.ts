@@ -17,6 +17,7 @@ export interface CompletenessSource {
   readonly nib: string | null;
   readonly taxNumber: string | null;
   readonly commodityIds: readonly string[];
+  readonly availableDocumentTypes: readonly string[];
 }
 
 export interface ProfileCompleteness {
@@ -33,6 +34,7 @@ const completenessFields = [
   ["addressLine", "Alamat lengkap"], ["postalCode", "Kode pos"], ["picName", "Nama PIC"],
   ["picPosition", "Jabatan PIC"], ["email", "Email usaha"], ["phone", "Nomor telepon"],
   ["nib", "NIB"], ["taxNumber", "NPWP"], ["commodityIds", "Minimal satu komoditas"],
+  ["availableDocumentTypes", "Dokumen NIB"],
 ] as const satisfies readonly (readonly [keyof CompletenessSource, string])[];
 
 function isComplete(value: CompletenessSource[keyof CompletenessSource]): boolean {
@@ -42,8 +44,12 @@ function isComplete(value: CompletenessSource[keyof CompletenessSource]): boolea
 }
 
 export function calculateProfileCompleteness(source: CompletenessSource): ProfileCompleteness {
-  const missingLabels = completenessFields.filter(([key]) => !isComplete(source[key])).map(([, label]) => label);
-  const total = completenessFields.length;
+  const missingLabels: string[] = completenessFields.filter(([key, label]) => {
+    if (label === "Dokumen NIB") return !source.availableDocumentTypes.includes("NIB");
+    return !isComplete(source[key]);
+  }).map(([, label]) => label);
+  if (!source.availableDocumentTypes.includes("TAX_ID")) missingLabels.push("Dokumen NPWP");
+  const total = completenessFields.length + 1;
   const completed = total - missingLabels.length;
   return { completed, total, percentage: Math.round((completed / total) * 100), missingLabels };
 }

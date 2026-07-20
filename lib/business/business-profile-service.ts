@@ -1,6 +1,7 @@
 import { AuditAction, CommodityPriority, Prisma } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { RequestContext } from "@/lib/request-context";
+import { listBusinessDocuments } from "@/lib/business-documents/document-service";
 
 import { calculateProfileCompleteness } from "./business-profile-completeness";
 import { emptyToNull, type BusinessProfileInput } from "./business-profile-schema";
@@ -21,12 +22,11 @@ const profileSelect = {
     longitude: true, description: true, updatedAt: true,
   } },
   commodities: { where: { deletedAt: null }, orderBy: [{ priority: "asc" }, { commodity: { name: "asc" } }], select: { commodityId: true, priority: true, otherDescription: true, commodity: { select: { name: true, isOther: true } } } },
-  legalDocuments: { where: { deletedAt: null }, orderBy: { updatedAt: "desc" }, select: { id: true, type: true, documentNumber: true, documentName: true, originalFileName: true, mimeType: true, fileSizeBytes: true, verificationStatus: true, issuedAt: true, expiresAt: true, updatedAt: true } },
 } satisfies Prisma.BusinessSelect;
 
 function value(value: string | null | undefined): string { return value ?? ""; }
 
-export async function getBusinessProfileData(userId: string, hasUpdatePermission: boolean) {
+export async function getBusinessProfileData(userId: string, hasUpdatePermission: boolean, hasDocumentUploadPermission = false) {
   const membership = await resolveCurrentBusiness(userId);
   if (!membership) return null;
   const [business, provinces, commodities] = await Promise.all([
@@ -36,6 +36,8 @@ export async function getBusinessProfileData(userId: string, hasUpdatePermission
   ]);
   const profile = business.profile;
   if (!profile) return null;
+  const canManageDocuments = hasDocumentUploadPermission && editableBusinessRoles.has(membership.role);
+  const documents = await listBusinessDocuments(userId, canManageDocuments);
   const commodityIds = business.commodities.map(({ commodityId }) => commodityId.toString());
   const form = {
     name: business.name, tradeName: value(profile.tradeName), businessType: profile.businessType,
@@ -50,13 +52,13 @@ export async function getBusinessProfileData(userId: string, hasUpdatePermission
     distributionPermitNumber: value(profile.distributionPermitNumber), otherLegalNumber: value(profile.otherLegalNumber), commodityIds,
   };
   return {
-    business: { code: business.businessCode, name: business.name, status: business.status, membershipRole: membership.role, canEdit: hasUpdatePermission && editableBusinessRoles.has(membership.role), updatedAt: (profile.updatedAt ?? business.updatedAt).toISOString() },
+    business: { code: business.businessCode, name: business.name, status: business.status, membershipRole: membership.role, canEdit: hasUpdatePermission && editableBusinessRoles.has(membership.role), canManageDocuments, updatedAt: (profile.updatedAt ?? business.updatedAt).toISOString() },
     form,
-    completeness: calculateProfileCompleteness({ ...form, yearEstablished: profile.yearEstablished, commodityIds }),
+    completeness: calculateProfileCompleteness({ ...form, yearEstablished: profile.yearEstablished, commodityIds, availableDocumentTypes: documents.filter(({ fileAvailable }) => fileAvailable).map(({ documentType }) => documentType) }),
     provinces: provinces.map(({ id, name }) => ({ id: id.toString(), name })),
     commodities: commodities.map(({ id, name, isOther }) => ({ id: id.toString(), name, isOther })),
     selectedCommodities: business.commodities.map(({ commodityId, priority, otherDescription, commodity }) => ({ id: commodityId.toString(), name: commodity.name, priority, isOther: commodity.isOther, otherDescription })),
-    documents: business.legalDocuments.map((document) => ({ id: document.id.toString(), type: document.type, documentNumber: document.documentNumber, documentName: document.documentName, originalFileName: document.originalFileName, mimeType: document.mimeType, fileSizeBytes: document.fileSizeBytes.toString(), verificationStatus: document.verificationStatus, issuedAt: document.issuedAt?.toISOString() ?? null, expiresAt: document.expiresAt?.toISOString() ?? null, updatedAt: document.updatedAt.toISOString() })),
+    documents,
   };
 }
 

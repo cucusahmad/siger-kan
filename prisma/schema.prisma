@@ -93,10 +93,12 @@ enum LegalDocumentType {
   NIB
   BUSINESS_LICENSE
   TAX_ID
+  PIRT
   COMPANY_DEED
   DOMICILE_CERTIFICATE
   HALAL_CERTIFICATE
   QUALITY_CERTIFICATE
+  PIC_IDENTITY
   OTHER
 }
 
@@ -158,6 +160,7 @@ model User {
   passwordResetTokens     PasswordResetToken[]
   businessMemberships     BusinessMember[]         @relation("BusinessMembers")
   businessInvitationsMade BusinessMember[]         @relation("BusinessMemberInviter")
+  uploadedDocuments       BusinessLegalDocument[]  @relation("DocumentUploader")
   verifiedDocuments       BusinessLegalDocument[]  @relation("DocumentVerifier")
   consents                UserConsent[]
   auditLogs               AuditLog[]               @relation("AuditActor")
@@ -542,11 +545,14 @@ model BusinessLegalDocument {
   storageKey         String                     @map("storage_key") @db.VarChar(500)
   originalFileName   String                     @map("original_file_name") @db.VarChar(255)
   mimeType           String                     @map("mime_type") @db.VarChar(120)
+  fileExtension      String                     @map("file_extension") @db.VarChar(10)
   fileSizeBytes      BigInt                     @map("file_size_bytes")
+  storageProvider    String                     @default("LOCAL") @map("storage_provider") @db.VarChar(40)
   checksum           String                     @db.VarChar(128)
   issuedAt           DateTime?                  @map("issued_at") @db.Date
   expiresAt          DateTime?                  @map("expires_at") @db.Date
   verificationStatus DocumentVerificationStatus @default(PENDING) @map("verification_status")
+  uploadedByUserId   BigInt?                    @map("uploaded_by_user_id")
   verifiedById       BigInt?                    @map("verified_by_id")
   verifiedAt         DateTime?                  @map("verified_at") @db.Timestamptz(3)
   rejectionReason    String?                    @map("rejection_reason") @db.Text
@@ -555,11 +561,13 @@ model BusinessLegalDocument {
   deletedAt          DateTime?                  @map("deleted_at") @db.Timestamptz(3)
 
   business   Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  uploadedBy User?    @relation("DocumentUploader", fields: [uploadedByUserId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   verifiedBy User?    @relation("DocumentVerifier", fields: [verifiedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([businessId, type, deletedAt])
   @@index([verificationStatus, createdAt])
   @@index([documentNumber])
+  @@index([uploadedByUserId])
   @@index([verifiedById])
   @@map("business_legal_documents")
 }
