@@ -109,6 +109,55 @@ enum DocumentVerificationStatus {
   EXPIRED
 }
 
+enum TestingApplicationStatus {
+  DRAFT
+  DIAJUKAN
+  PERLU_PERBAIKAN
+  DISETUJUI
+  MENUNGGU_SAMPEL
+  SAMPEL_DITERIMA
+  DALAM_PENGUJIAN
+  SELESAI
+  DITOLAK
+}
+
+enum TestingPurpose {
+  EKSPOR
+  DOMESTIK
+  SERTIFIKASI
+  INTERNAL
+  LAINNYA
+}
+
+enum ProductForm {
+  FRESH
+  FROZEN
+  FILLET
+  OLAHAN
+  KERING
+  HIDUP
+  LAINNYA
+}
+
+enum SampleCondition {
+  BEKU
+  DINGIN
+  SEGAR
+  KERING
+  CAIR
+  HIDUP
+  LAINNYA
+}
+
+enum ApplicationDocumentType {
+  SURAT_PERMOHONAN
+  INVOICE
+  PACKING_LIST
+  HEALTH_CERTIFICATE
+  FOTO_SAMPEL
+  LAINNYA
+}
+
 enum ConsentType {
   TERMS_OF_SERVICE
   PRIVACY_POLICY
@@ -164,6 +213,7 @@ model User {
   verifiedDocuments       BusinessLegalDocument[]  @relation("DocumentVerifier")
   consents                UserConsent[]
   auditLogs               AuditLog[]               @relation("AuditActor")
+  reviewedTestingApplications TestingApplication[] @relation("TestingApplicationReviewer")
 
   @@index([status, deletedAt])
   @@index([type, status])
@@ -498,17 +548,194 @@ model BusinessProfile {
   updatedAt                DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt                DateTime?    @map("deleted_at") @db.Timestamptz(3)
 
-  business Business  @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  regency  Regency   @relation(fields: [regencyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  province Province  @relation(fields: [provinceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  district District? @relation(fields: [districtId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  village  Village?  @relation(fields: [villageId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  business            Business             @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  regency             Regency              @relation(fields: [regencyId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  province            Province             @relation(fields: [provinceId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  district            District?            @relation(fields: [districtId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  village             Village?             @relation(fields: [villageId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  testingApplications TestingApplication[]
 
   @@index([businessType])
   @@index([provinceId, regencyId])
   @@index([districtId])
   @@index([villageId])
   @@map("business_profiles")
+}
+
+model Laboratory {
+  id        BigInt    @id @default(autoincrement())
+  code      String    @unique @db.VarChar(40)
+  name      String    @db.VarChar(200)
+  address   String?   @db.Text
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  applications TestingApplication[]
+
+  @@index([isActive, deletedAt])
+  @@map("laboratories")
+}
+
+model TestingCategory {
+  id        BigInt    @id @default(autoincrement())
+  code      String    @unique @db.VarChar(40)
+  name      String    @db.VarChar(120)
+  sortOrder Int       @default(0) @map("sort_order")
+  isActive  Boolean   @default(true) @map("is_active")
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  parameters TestingParameter[]
+
+  @@index([isActive, sortOrder, deletedAt])
+  @@map("testing_categories")
+}
+
+model TestingParameter {
+  id                BigInt    @id @default(autoincrement())
+  testingCategoryId BigInt    @map("testing_category_id")
+  code              String    @unique @db.VarChar(60)
+  name              String    @db.VarChar(160)
+  method            String?   @db.VarChar(200)
+  estimatedDays     Int?      @map("estimated_days")
+  estimatedCost     Decimal?  @map("estimated_cost") @db.Decimal(18, 2)
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt         DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  category              TestingCategory               @relation(fields: [testingCategoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  applicationParameters ApplicationTestingParameter[]
+
+  @@index([testingCategoryId, isActive, deletedAt])
+  @@index([name])
+  @@map("testing_parameters")
+}
+
+model TestingApplication {
+  id                  BigInt                   @id @default(autoincrement())
+  applicationNumber   String?                  @unique @map("application_number") @db.VarChar(32)
+  businessProfileId   BigInt                   @map("business_profile_id")
+  laboratoryId        BigInt?                  @map("laboratory_id")
+  purpose             TestingPurpose?
+  otherPurpose        String?                  @map("other_purpose") @db.VarChar(200)
+  testingTypes        String[]                 @default([]) @map("testing_types")
+  status              TestingApplicationStatus @default(DRAFT)
+  notes               String?                  @db.Text
+  declarationAccepted Boolean                  @default(false) @map("declaration_accepted")
+  submittedAt         DateTime?                @map("submitted_at") @db.Timestamptz(3)
+  receptionChecklist  Json?                    @map("reception_checklist")
+  correctionNotes     String?                  @map("correction_notes") @db.Text
+  reviewedById        BigInt?                  @map("reviewed_by_id")
+  reviewedAt          DateTime?                @map("reviewed_at") @db.Timestamptz(3)
+  createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime?                @map("deleted_at") @db.Timestamptz(3)
+
+  businessProfile BusinessProfile               @relation(fields: [businessProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  laboratory      Laboratory?                   @relation(fields: [laboratoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product         TestingApplicationProduct?
+  samples         TestingSample[]
+  parameters      ApplicationTestingParameter[]
+  documents       ApplicationDocument[]
+  reviewedBy      User?                         @relation("TestingApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([businessProfileId, status, deletedAt])
+  @@index([laboratoryId])
+  @@index([reviewedById])
+  @@index([createdAt])
+  @@map("testing_applications")
+}
+
+model TestingApplicationProduct {
+  id                   BigInt       @id @default(autoincrement())
+  testingApplicationId BigInt       @unique @map("testing_application_id")
+  productName          String?      @map("product_name") @db.VarChar(200)
+  productType          String?      @map("product_type") @db.VarChar(160)
+  hsCode               String?      @map("hs_code") @db.VarChar(32)
+  productForm          ProductForm? @map("product_form")
+  otherProductForm     String?      @map("other_product_form") @db.VarChar(160)
+  description          String?      @db.Text
+  createdAt            DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt            DateTime?    @map("deleted_at") @db.Timestamptz(3)
+
+  application TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([productName])
+  @@map("testing_application_products")
+}
+
+model TestingSample {
+  id                   BigInt           @id @default(autoincrement())
+  testingApplicationId BigInt           @map("testing_application_id")
+  sampleName           String?          @map("sample_name") @db.VarChar(200)
+  quantity             Int?
+  weight               Decimal?         @db.Decimal(18, 3)
+  weightUnit           String?          @map("weight_unit") @db.VarChar(40)
+  packaging            String?          @db.VarChar(120)
+  condition            SampleCondition?
+  samplingDate         DateTime?        @map("sampling_date") @db.Date
+  samplingLocation     String?          @map("sampling_location") @db.VarChar(250)
+  temperature          Decimal?         @db.Decimal(8, 2)
+  description          String?          @db.Text
+  createdAt            DateTime         @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime         @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt            DateTime?        @map("deleted_at") @db.Timestamptz(3)
+
+  application TestingApplication            @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parameters  ApplicationTestingParameter[]
+
+  @@index([testingApplicationId, deletedAt])
+  @@map("testing_samples")
+}
+
+model ApplicationTestingParameter {
+  id                   BigInt   @id @default(autoincrement())
+  testingApplicationId BigInt   @map("testing_application_id")
+  testingSampleId      BigInt   @map("testing_sample_id")
+  testingParameterId   BigInt   @map("testing_parameter_id")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sample      TestingSample      @relation(fields: [testingSampleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parameter   TestingParameter   @relation(fields: [testingParameterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([testingApplicationId, testingSampleId, testingParameterId])
+  @@index([testingSampleId])
+  @@index([testingParameterId])
+  @@map("application_testing_parameters")
+}
+
+model ApplicationDocument {
+  id                   BigInt                  @id @default(autoincrement())
+  testingApplicationId BigInt                  @map("testing_application_id")
+  documentType         ApplicationDocumentType @map("document_type")
+  documentName         String?                 @map("document_name") @db.VarChar(200)
+  fileName             String                  @map("file_name") @db.VarChar(255)
+  filePath             String                  @map("file_path") @db.VarChar(500)
+  mimeType             String                  @map("mime_type") @db.VarChar(120)
+  fileSize             BigInt                  @map("file_size")
+  uploadedAt           DateTime                @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+  createdAt            DateTime                @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime                @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt            DateTime?               @map("deleted_at") @db.Timestamptz(3)
+
+  application TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([testingApplicationId, deletedAt])
+  @@map("application_documents")
+}
+
+model TestingApplicationCounter {
+  year       Int      @id
+  lastNumber Int      @default(0) @map("last_number")
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  @@map("testing_application_counters")
 }
 
 model BusinessMember {

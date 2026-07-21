@@ -57,10 +57,20 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     ],
   },
   {
-    label: "Layanan Mutu",
+    label: "Pengujian Mutu",
     icon: "badgeCheck",
     items: [
-      { label: "Pengujian Mutu", href: "/dashboard/quality-testing", icon: "beaker", requiredPermissions: ["laboratory.request.read"] },
+      { label: "Pengajuan Pengujian", href: "/dashboard/permohonan", icon: "fileBadge", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
+      { label: "Penerimaan Sampel", href: "/dashboard/quality-testing/sample-reception", icon: "packageSearch", requiredPermissions: ["laboratory.sample.receive"] },
+      { label: "Tracking Proses Laboratorium", href: "/dashboard/quality-testing/tracking", icon: "beaker", requiredPermissions: ["laboratory.request.read", "laboratory.sample.test"] },
+      { label: "Verifikasi Hasil", href: "/dashboard/quality-testing/result-verification", icon: "clipboardCheck", requiredPermissions: ["laboratory.result.review", "laboratory.result.approve"] },
+      { label: "Unduh Laporan Hasil Uji", href: "/dashboard/quality-testing/reports", icon: "fileChart", requiredPermissions: ["laboratory.request.read", "report.read"] },
+    ],
+  },
+  {
+    label: "Sertifikasi dan Pendampingan",
+    icon: "badgeCheck",
+    items: [
       { label: "Sertifikasi", href: "/dashboard/certification", icon: "clipboardCheck", requiredPermissions: ["certification.read"] },
       { label: "Klinik Mutu", href: "/dashboard/quality-clinic", icon: "messageSquareHeart", requiredPermissions: ["consultation.read"] },
     ],

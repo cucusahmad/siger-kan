@@ -1,0 +1,3 @@
+const styles: Readonly<Record<string, string>> = { DRAFT: "bg-slate-100 text-slate-700", DIAJUKAN: "bg-cyan-50 text-[#087E8B]", PERLU_PERBAIKAN: "bg-amber-50 text-amber-700", DISETUJUI: "bg-emerald-50 text-emerald-700", MENUNGGU_SAMPEL: "bg-violet-50 text-violet-700", SAMPEL_DITERIMA: "bg-blue-50 text-blue-700", DALAM_PENGUJIAN: "bg-indigo-50 text-indigo-700", SELESAI: "bg-emerald-100 text-emerald-800", DITOLAK: "bg-red-50 text-red-700" };
+export function ApplicationStatusBadge({ status }: { readonly status: string }) { return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-bold ${styles[status] ?? styles.DRAFT}`}>{status.replaceAll("_", " ")}</span>; }
+

@@ -1,0 +1,4 @@
+export interface ApiResponse<T> { readonly success: boolean; readonly message: string; readonly data?: T; readonly errors?: unknown }
+export interface LaboratoryDto { readonly id: string; readonly code: string; readonly name: string; readonly address: string | null }
+export interface TestingParameterDto { readonly id: string; readonly code: string; readonly name: string; readonly method: string | null; readonly estimatedDays: number | null; readonly estimatedCost: string | null; readonly category: { readonly id: string; readonly code: string; readonly name: string } }
+export interface ApplicationDocumentDto { readonly id: string; readonly documentType: string; readonly documentName: string | null; readonly fileName: string; readonly mimeType: string; readonly fileSize: string; readonly uploadedAt: string }

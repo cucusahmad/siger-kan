@@ -25,6 +25,12 @@ interface CommoditySeed {
   readonly isOther?: boolean;
 }
 
+const testingCategories = [
+  { code: "MICROBIOLOGY", name: "Mikrobiologi", sortOrder: 1, parameters: ["ALT/TPC", "E. coli", "Coliform", "Salmonella", "Vibrio cholerae", "Vibrio parahaemolyticus", "Staphylococcus aureus", "Enterococci"] },
+  { code: "CHEMISTRY", name: "Kimia", sortOrder: 2, parameters: ["Formalin", "Histamin", "Chloramphenicol", "Nitrofuran", "Tetracycline", "Protein", "Lemak", "Kadar Air", "Kadar Abu", "Logam Berat"] },
+  { code: "PHYSICAL_ORGANOLEPTIC", name: "Fisika dan Organoleptik", sortOrder: 3, parameters: ["Suhu Pusat", "Filth", "TVB", "TMA", "Organoleptik"] },
+] as const;
+
 const permissionCatalogue: readonly PermissionSeed[] = [
   {
     module: "AUTH",
@@ -467,6 +473,15 @@ async function main(): Promise<void> {
           deletedAt: null,
         },
       });
+    }
+
+    await transaction.laboratory.upsert({ where: { code: "UPTD_PMHP_LAMPUNG" }, create: { code: "UPTD_PMHP_LAMPUNG", name: "Laboratorium UPTD PMHP Provinsi Lampung", address: "Provinsi Lampung" }, update: { name: "Laboratorium UPTD PMHP Provinsi Lampung", isActive: true, deletedAt: null } });
+    for (const category of testingCategories) {
+      const storedCategory = await transaction.testingCategory.upsert({ where: { code: category.code }, create: { code: category.code, name: category.name, sortOrder: category.sortOrder }, update: { name: category.name, sortOrder: category.sortOrder, isActive: true, deletedAt: null } });
+      for (const [index, name] of category.parameters.entries()) {
+        const code = `${category.code}_${String(index + 1).padStart(2, "0")}`;
+        await transaction.testingParameter.upsert({ where: { code }, create: { code, name, testingCategoryId: storedCategory.id, estimatedDays: 5 }, update: { name, testingCategoryId: storedCategory.id, isActive: true, deletedAt: null } });
+      }
     }
   });
 
