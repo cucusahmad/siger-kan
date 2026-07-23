@@ -72,9 +72,9 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
       { label: "Persetujuan Kepala UPTD", href: "/dashboard/quality-testing/uptd-approval", icon: "clipboardCheck", allowedRoles: ["KEPALA_UPTD"] },
       { label: "Penugasan Pengujian", href: "/dashboard/quality-testing/work-orders", icon: "clipboardCheck", allowedRoles: ["PENYELIA_LAB", "ANALIS_LAB"] },
       { label: "Pengiriman Laboratorium Mitra", href: "/dashboard/quality-testing/subcontract", icon: "packageSearch", allowedRoles: ["PENYELIA_LAB"] },
-      { label: "Tracking Proses Laboratorium", href: "/dashboard/quality-testing/tracking", icon: "beaker", requiredPermissions: ["laboratory.request.read", "laboratory.sample.test"] },
+      { label: "Tracking Proses Laboratorium", href: "/dashboard/quality-testing/tracking", icon: "beaker", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
       { label: "Verifikasi Hasil", href: "/dashboard/quality-testing/result-verification", icon: "clipboardCheck", requiredPermissions: ["laboratory.result.review", "laboratory.result.approve"] },
-      { label: "Unduh Laporan Hasil Uji", href: "/dashboard/quality-testing/reports", icon: "fileChart", requiredPermissions: ["laboratory.request.read", "report.read"] },
+      { label: "Penerbitan LHU", href: "/dashboard/quality-testing/reports", icon: "fileChart", allowedRoles: ["PENYELIA_LAB", "KEPALA_UPTD"], requiredPermissions: ["laboratory.result.review", "laboratory.result.approve"] },
     ],
   },
   {

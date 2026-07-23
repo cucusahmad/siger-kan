@@ -23,6 +23,20 @@ export async function requireUptdHead() {
   return user;
 }
 
+export async function requireReportPreparer() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+  if (!user.roleCodes.includes("PENYELIA_LAB") || !user.permissions.includes("laboratory.result.review")) throw new Error("FORBIDDEN");
+  return user;
+}
+
+export async function requireReportApprover() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+  if (!user.roleCodes.includes("KEPALA_UPTD") || !user.permissions.includes("laboratory.result.approve")) throw new Error("FORBIDDEN");
+  return user;
+}
+
 async function requireLaboratoryRole(role: "PENYELIA_LAB" | "ANALIS_LAB", permission: string) { const user = await getCurrentUser(); if (!user) throw new Error("UNAUTHENTICATED"); if (!user.roleCodes.includes(role) || !user.permissions.includes(permission)) throw new Error("FORBIDDEN"); return user; }
 export async function requireLaboratorySupervisor() { return requireLaboratoryRole("PENYELIA_LAB", "laboratory.result.review"); }
 export async function requireLaboratoryAnalyst() { return requireLaboratoryRole("ANALIS_LAB", "laboratory.sample.test"); }
@@ -39,6 +53,12 @@ export function applicationError(error: unknown): { readonly status: number; rea
     INVALID_REVIEW: { status: 422, message: "Data kaji ulang belum lengkap atau keputusan tidak sesuai hasil pemeriksaan." },
     INVALID_WORK_ORDER: { status: 422, message: "Data penugasan Work Order belum lengkap atau tidak valid." },
     DOCUMENT_REQUIRED: { status: 422, message: "Unggah minimal satu dokumen hasil sebelum mengirim ke penyelia." },
+    INVALID_VERIFICATION: { status: 422, message: "Keputusan verifikasi tidak valid. Alasan pengembalian minimal 10 karakter." },
+    INVALID_REPORT: { status: 422, message: "Data LHU belum lengkap atau tidak valid." },
+    WORK_ORDERS_INCOMPLETE: { status: 409, message: "LHU hanya dapat diajukan setelah seluruh hasil pengujian diverifikasi." },
+    REPORT_NUMBER_EXISTS: { status: 409, message: "Nomor LHU sudah digunakan." },
+    INVALID_REPORT_DECISION: { status: 422, message: "Keputusan LHU tidak valid. Alasan pengembalian minimal 10 karakter." },
+    INVALID_FINAL_REPORT_FILE: { status: 422, message: "Dokumen final LHU wajib berupa PDF yang valid dengan ukuran maksimal 5 MB." },
   };
   return values[code] ?? { status: 500, message: "Terjadi kesalahan. Silakan coba kembali." };
 }

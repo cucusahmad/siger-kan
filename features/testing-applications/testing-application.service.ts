@@ -31,7 +31,7 @@ export async function listApplications(owner: Owner, query: { search: string; st
 
 export async function getApplication(owner: Owner, id: string) {
   const profileId = await businessProfileId(owner, prisma);
-  const application = await prisma.testingApplication.findFirst({ where: { id: BigInt(id), businessProfileId: profileId, deletedAt: null }, include: detailInclude });
+  const application = await prisma.testingApplication.findFirst({ where: { id: BigInt(id), businessProfileId: profileId, deletedAt: null }, include: { ...detailInclude, laboratoryReport: { select: { id: true, reportNumber: true, status: true, reportDate: true, finalFileName: true, finalUploadedAt: true, publishedAt: true } } } });
   if (!application) throw new Error("NOT_FOUND");
   return serialize(application);
 }

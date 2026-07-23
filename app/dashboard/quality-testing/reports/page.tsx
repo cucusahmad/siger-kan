@@ -1,14 +1,26 @@
 import type { Metadata } from "next";
+import { ClipboardCheck, FileText, ShieldCheck } from "lucide-react";
+import Link from "next/link";
+import { redirect } from "next/navigation";
+import { LaboratoryReportForm } from "@/components/dashboard/testing-applications/LaboratoryReportForm";
+import { listLaboratoryReports } from "@/features/testing-applications/laboratory-report.service";
+import { requireReportApprover, requireReportPreparer } from "@/features/testing-applications/testing-application.auth";
 
-import { DashboardPlaceholderPage } from "@/components/dashboard/dashboard-placeholder-page";
+export const metadata: Metadata = { title: "Penerbitan LHU" };
+interface ReportSummary { readonly id: string; readonly reportNumber: string; readonly status: string; readonly submittedAt: string | null; readonly application: { readonly applicationNumber: string; readonly businessProfile: { readonly business: { readonly name: string } } } }
+interface ApplicationSummary { readonly id: string; readonly applicationNumber: string | null; readonly businessProfile: { readonly business: { readonly name: string } }; readonly workOrders: readonly unknown[]; readonly laboratoryReport: { readonly id: string; readonly reportNumber: string; readonly status: string; readonly reportDate: string; readonly conclusion: string; readonly notes: string | null; readonly approvalNotes: string | null } | null }
 
-export const metadata: Metadata = { title: "Unduh Laporan Hasil Uji" };
-
-export default function TestingReportsPage() {
-  return (
-    <DashboardPlaceholderPage
-      title="Unduh Laporan Hasil Uji"
-      description="Akses dan unduh Laporan Hasil Uji yang telah diterbitkan."
-    />
-  );
+export default async function TestingReportsPage() {
+  let role: "PREPARER" | "APPROVER";
+  try { try { await requireReportApprover(); role = "APPROVER"; } catch { await requireReportPreparer(); role = "PREPARER"; } } catch { redirect("/dashboard"); }
+  if (role === "APPROVER") {
+    const reports = await listLaboratoryReports(role) as readonly ReportSummary[];
+    return <div className="space-y-6"><Header role={role} /><div className="grid gap-4">{reports.map((report) => <Link key={report.id} href={`/dashboard/quality-testing/reports/${report.id}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition hover:border-[#087E8B]"><div className="flex flex-wrap items-start justify-between gap-4"><div><p className="text-xs font-bold text-[#087E8B]">{report.reportNumber}</p><h2 className="mt-1 font-bold text-[#073B4C]">{report.application.businessProfile.business.name}</h2><p className="mt-1 text-sm text-slate-500">{report.application.applicationNumber}</p></div><Status value={report.status} /></div></Link>)}{!reports.length && <Empty text="Belum ada LHU yang diajukan." />}</div></div>;
+  }
+  const applications = await listLaboratoryReports(role) as readonly ApplicationSummary[];
+  return <div className="space-y-6"><Header role={role} /><div className="grid gap-5">{applications.map((application) => { const report = application.laboratoryReport; const editable = !report || report.status === "DRAF" || report.status === "PERLU_PERBAIKAN"; return <article key={application.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"><div className="mb-5 flex flex-wrap items-start justify-between gap-3"><div><p className="text-xs font-bold text-[#087E8B]">{application.applicationNumber || "Nomor belum tersedia"}</p><h2 className="mt-1 font-bold text-[#073B4C]">{application.businessProfile.business.name}</h2><p className="mt-1 text-sm text-slate-500">{application.workOrders.length} hasil pengujian telah diverifikasi</p></div>{report && <Status value={report.status} />}</div>{report?.approvalNotes && report.status === "PERLU_PERBAIKAN" && <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800"><strong>Catatan Kepala UPTD:</strong> {report.approvalNotes}</div>}{editable ? <LaboratoryReportForm applicationId={application.id} applicationNumber={application.applicationNumber || "Permohonan"} defaultValues={report ? { reportNumber: report.reportNumber, reportDate: report.reportDate.slice(0, 10), conclusion: report.conclusion, notes: report.notes || "" } : undefined} /> : <Link href={`/dashboard/quality-testing/reports/${report.id}`} className="inline-flex items-center gap-2 text-sm font-bold text-[#087E8B]"><FileText size={17} /> Lihat detail LHU</Link>}</article>; })}{!applications.length && <Empty text="Belum ada permohonan dengan seluruh hasil terverifikasi." />}</div></div>;
 }
+
+function Header({ role }: { readonly role: "PREPARER" | "APPROVER" }) { return <header><p className="text-sm font-bold text-[#087E8B]">Layanan Laboratorium</p><h1 className="mt-1 text-3xl font-bold text-[#073B4C]">{role === "APPROVER" ? "Persetujuan LHU" : "Penerbitan LHU"}</h1><p className="mt-2 text-sm text-slate-500">{role === "APPROVER" ? "Periksa dan putuskan Laporan Hasil Uji yang diajukan penyelia." : "Susun Laporan Hasil Uji dari hasil terverifikasi untuk diajukan kepada Kepala UPTD."}</p></header>; }
+function Status({ value }: { readonly value: string }) { const published = value === "DITERBITKAN"; return <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${published ? "bg-emerald-50 text-emerald-700" : value === "PERLU_PERBAIKAN" ? "bg-amber-50 text-amber-700" : "bg-cyan-50 text-[#087E8B]"}`}>{published ? <ShieldCheck size={14} /> : <ClipboardCheck size={14} />}{value.replaceAll("_", " ")}</span>; }
+function Empty({ text }: { readonly text: string }) { return <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-10 text-center text-sm text-slate-500">{text}</div>; }

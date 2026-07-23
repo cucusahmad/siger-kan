@@ -139,6 +139,7 @@ enum TestingWorkOrderStatus {
   MENUNGGU_PENGIRIMAN_LAB_MITRA
   DALAM_PENGUJIAN
   MENUNGGU_VERIFIKASI_PENYELIA
+  HASIL_TERVERIFIKASI
 }
 
 enum TestingWorkOrderPriority {
@@ -154,6 +155,14 @@ enum TestingWorkOrderDocumentType {
   CERTIFICATE_OF_ANALYSIS
   FOTO_HASIL
   DOKUMEN_PENDUKUNG_LAIN
+}
+
+enum LaboratoryTestReportStatus {
+  DRAF
+  MENUNGGU_PERSETUJUAN
+  PERLU_PERBAIKAN
+  MENUNGGU_DOKUMEN_FINAL
+  DITERBITKAN
 }
 
 enum TestingPurpose {
@@ -255,6 +264,10 @@ model User {
   assignedTestingWorkOrders   TestingWorkOrder[]         @relation("TestingWorkOrderAnalyst")
   assignedWorkOrdersByUser    TestingWorkOrder[]         @relation("TestingWorkOrderAssigner")
   uploadedWorkOrderDocuments  TestingWorkOrderDocument[]
+  reviewedTestingWorkOrders   TestingWorkOrder[]         @relation("TestingWorkOrderReviewer")
+  preparedLaboratoryReports   LaboratoryTestReport[]     @relation("LaboratoryTestReportPreparer")
+  approvedLaboratoryReports   LaboratoryTestReport[]     @relation("LaboratoryTestReportApprover")
+  uploadedFinalLaboratoryReports LaboratoryTestReport[]  @relation("LaboratoryTestReportFinalUploader")
 
   @@index([status, deletedAt])
   @@index([type, status])
@@ -680,17 +693,18 @@ model TestingApplication {
   updatedAt           DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt           DateTime?                @map("deleted_at") @db.Timestamptz(3)
 
-  businessProfile BusinessProfile               @relation(fields: [businessProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  laboratory      Laboratory?                   @relation(fields: [laboratoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  product         TestingApplicationProduct?
-  samples         TestingSample[]
-  parameters      ApplicationTestingParameter[]
-  documents       ApplicationDocument[]
-  reviewedBy      User?                         @relation("TestingApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  approvedBy      User?                         @relation("TestingApplicationApprover", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  sampleShipment  SampleShipment?
-  sampleReview    SampleReview?
-  workOrders      TestingWorkOrder[]
+  businessProfile  BusinessProfile               @relation(fields: [businessProfileId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  laboratory       Laboratory?                   @relation(fields: [laboratoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  product          TestingApplicationProduct?
+  samples          TestingSample[]
+  parameters       ApplicationTestingParameter[]
+  documents        ApplicationDocument[]
+  reviewedBy       User?                         @relation("TestingApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  approvedBy       User?                         @relation("TestingApplicationApprover", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sampleShipment   SampleShipment?
+  sampleReview     SampleReview?
+  workOrders       TestingWorkOrder[]
+  laboratoryReport LaboratoryTestReport?
 
   @@index([businessProfileId, status, deletedAt])
   @@index([laboratoryId])
@@ -759,6 +773,9 @@ model TestingWorkOrder {
   analystNotes                  String?                  @map("analyst_notes") @db.Text
   partnerLaboratoryId           BigInt?                  @map("partner_laboratory_id")
   sentToSupervisorAt            DateTime?                @map("sent_to_supervisor_at") @db.Timestamptz(3)
+  reviewedById                  BigInt?                  @map("reviewed_by_id")
+  reviewedAt                    DateTime?                @map("reviewed_at") @db.Timestamptz(3)
+  supervisorNotes               String?                  @map("supervisor_notes") @db.Text
   createdAt                     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt                     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt                     DateTime?                @map("deleted_at") @db.Timestamptz(3)
@@ -767,11 +784,13 @@ model TestingWorkOrder {
   applicationParameter ApplicationTestingParameter @relation(fields: [applicationTestingParameterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   analyst              User?                       @relation("TestingWorkOrderAnalyst", fields: [analystId], references: [id], onDelete: SetNull, onUpdate: Cascade)
   assignedBy           User?                       @relation("TestingWorkOrderAssigner", fields: [assignedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  reviewedBy           User?                       @relation("TestingWorkOrderReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
   partnerLaboratory    Laboratory?                 @relation("TestingWorkOrderPartnerLaboratory", fields: [partnerLaboratoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
   documents            TestingWorkOrderDocument[]
 
   @@index([testingApplicationId, type, status])
   @@index([analystId, status, deletedAt])
+  @@index([reviewedById, reviewedAt])
   @@index([partnerLaboratoryId, status])
   @@map("testing_work_orders")
 }
@@ -796,6 +815,43 @@ model TestingWorkOrderDocument {
   @@index([testingWorkOrderId, type, deletedAt])
   @@index([uploadedById])
   @@map("testing_work_order_documents")
+}
+
+model LaboratoryTestReport {
+  id                   BigInt                     @id @default(autoincrement())
+  testingApplicationId BigInt                     @unique @map("testing_application_id")
+  reportNumber         String                     @unique @map("report_number") @db.VarChar(64)
+  status               LaboratoryTestReportStatus @default(DRAF)
+  reportDate           DateTime                   @map("report_date") @db.Date
+  conclusion           String                     @db.Text
+  notes                String?                    @db.Text
+  preparedById         BigInt                     @map("prepared_by_id")
+  submittedAt          DateTime?                  @map("submitted_at") @db.Timestamptz(3)
+  approvedById         BigInt?                    @map("approved_by_id")
+  approvedAt           DateTime?                  @map("approved_at") @db.Timestamptz(3)
+  approvalNotes        String?                    @map("approval_notes") @db.Text
+  finalFileName        String?                    @map("final_file_name") @db.VarChar(255)
+  finalFilePath        String?                    @map("final_file_path") @db.VarChar(500)
+  finalMimeType        String?                    @map("final_mime_type") @db.VarChar(120)
+  finalFileSize        BigInt?                    @map("final_file_size")
+  finalUploadedById    BigInt?                    @map("final_uploaded_by_id")
+  finalUploadedAt      DateTime?                  @map("final_uploaded_at") @db.Timestamptz(3)
+  publishedAt          DateTime?                  @map("published_at") @db.Timestamptz(3)
+  createdAt            DateTime                   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt            DateTime?                  @map("deleted_at") @db.Timestamptz(3)
+
+  application TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  preparedBy  User               @relation("LaboratoryTestReportPreparer", fields: [preparedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  approvedBy  User?              @relation("LaboratoryTestReportApprover", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  finalUploadedBy User?           @relation("LaboratoryTestReportFinalUploader", fields: [finalUploadedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([status, submittedAt])
+  @@index([preparedById])
+  @@index([approvedById])
+  @@index([finalUploadedById])
+  @@index([publishedAt])
+  @@map("laboratory_test_reports")
 }
 
 model SampleShipment {

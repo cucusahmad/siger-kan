@@ -1,14 +1,20 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { DashboardPlaceholderPage } from "@/components/dashboard/dashboard-placeholder-page";
+import { LaboratoryTracking } from "@/components/dashboard/testing-applications/LaboratoryTracking";
+import { requireApplicant } from "@/features/testing-applications/testing-application.auth";
+import { listLaboratoryTracking } from "@/features/testing-applications/laboratory-tracking.service";
 
 export const metadata: Metadata = { title: "Tracking Proses Laboratorium" };
 
-export default function LaboratoryTrackingPage() {
-  return (
-    <DashboardPlaceholderPage
-      title="Tracking Proses Laboratorium"
-      description="Pantau tahapan dan perkembangan proses pengujian sampel di laboratorium."
-    />
-  );
+export default async function LaboratoryTrackingPage() {
+  let businessId: bigint;
+  try {
+    const { membership } = await requireApplicant("read");
+    businessId = membership.businessId;
+  } catch {
+    redirect("/dashboard");
+  }
+  const applications = await listLaboratoryTracking(businessId);
+  return <LaboratoryTracking applications={applications} />;
 }

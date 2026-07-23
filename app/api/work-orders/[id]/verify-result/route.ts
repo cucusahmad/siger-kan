@@ -1,0 +1,20 @@
+import { NextResponse } from "next/server";
+
+import { requireLaboratorySupervisor } from "@/features/testing-applications/testing-application.auth";
+import { apiError, validId } from "@/features/testing-applications/testing-api";
+import { verifyWorkOrderResult } from "@/features/testing-applications/work-order.service";
+import { getRequestContext } from "@/lib/request-context";
+
+interface Context { readonly params: Promise<{ readonly id: string }> }
+
+export async function POST(request: Request, context: Context) {
+  try {
+    const { id } = await context.params;
+    if (!validId(id)) throw new Error("NOT_FOUND");
+    const user = await requireLaboratorySupervisor();
+    const data = await verifyWorkOrderResult(user.id, id, await request.json(), getRequestContext(request));
+    return NextResponse.json({ success: true, message: data.status === "HASIL_TERVERIFIKASI" ? "Hasil pengujian berhasil diverifikasi." : "Hasil dikembalikan kepada analis untuk diperbaiki.", data });
+  } catch (error: unknown) {
+    return apiError(error);
+  }
+}
