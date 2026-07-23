@@ -54,9 +54,14 @@ export async function getAdminDashboardData(): Promise<AdminDashboardData> {
         code: business.businessCode,
         name: business.name,
         ownerName: owner?.profile?.fullName ?? "Belum ditentukan",
-        ownerEmail: owner?.email ?? "-",
+        ownerEmail: business.profile?.email ?? owner?.email ?? "-",
+        phone: business.profile?.phone ?? business.profile?.whatsapp ?? owner?.phone ?? "-",
         businessType: business.profile?.businessType ?? "OTHER",
-        location: business.profile ? `${business.profile.regency.name}, ${business.profile.province.name}` : "Belum dilengkapi",
+        location: business.profile
+          ? [business.profile.addressLine, business.profile.regency.name, business.profile.province.name]
+              .filter((value): value is string => Boolean(value)).join(", ")
+          : "Belum dilengkapi",
+        region: business.profile?.regency.name ?? "Belum dilengkapi",
         status: business.status,
         commodityCount: business._count.commodities,
         documentCount: business._count.legalDocuments,

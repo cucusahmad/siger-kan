@@ -1,5 +1,7 @@
 @import "tailwindcss";
 
+@layer components { .input { @apply mt-2 w-full rounded-xl border border-slate-200 bg-white px-3 py-2.5 font-normal text-slate-700 outline-none focus:border-[#0FA3B1]; } }
+
 :root {
   --navy: #073b4c;
   --ocean: #087e8b;

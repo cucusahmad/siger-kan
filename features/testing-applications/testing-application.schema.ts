@@ -42,7 +42,7 @@ export const submitApplicationSchema = baseApplicationSchema.extend({
 });
 
 export const applicationListQuerySchema = z.object({
-  search: z.string().trim().max(100).default(""), status: z.enum(["DRAFT", "DIAJUKAN", "PERLU_PERBAIKAN", "DISETUJUI", "MENUNGGU_SAMPEL", "SAMPEL_DITERIMA", "DALAM_PENGUJIAN", "SELESAI", "DITOLAK"]).optional(),
+  search: z.string().trim().max(100).default(""), status: z.enum(["DRAFT", "DIAJUKAN", "PERLU_PERBAIKAN", "MENUNGGU_PERSETUJUAN_UPTD", "DISETUJUI", "MENUNGGU_SAMPEL", "SAMPEL_DIKIRIM", "SAMPEL_DITERIMA", "DALAM_PENGUJIAN", "SELESAI", "DITOLAK"]).optional(),
   from: z.string().optional(), to: z.string().optional(), page: z.coerce.number().int().positive().default(1), pageSize: z.coerce.number().int().min(5).max(50).default(10),
 });
 
@@ -67,3 +67,52 @@ export const receptionReviewSchema = z.object({
 export type DraftApplicationInput = z.infer<typeof draftApplicationSchema>;
 export type SubmitApplicationInput = z.infer<typeof submitApplicationSchema>;
 export type ReceptionReviewInput = z.infer<typeof receptionReviewSchema>;
+
+export const uptdApprovalSchema = z.object({
+  decision: z.enum(["APPROVE", "REJECT"]),
+  notes: z.string().trim().max(3000).default(""),
+}).superRefine((value, context) => {
+  if (value.decision === "REJECT" && !value.notes) context.addIssue({ code: "custom", path: ["notes"], message: "Alasan penolakan wajib diisi." });
+});
+
+export const sampleShipmentSchema = z.object({
+  shippingDate: dateSchema,
+  shippingMethod: z.enum(["DIANTAR_LANGSUNG", "EKSPEDISI"]),
+  carrierName: optionalText(160),
+  trackingNumber: optionalText(120),
+  packageCount: z.coerce.number().int().positive().max(1000),
+  conditionNotes: optionalText(3000),
+  senderName: z.string().trim().min(2).max(160),
+}).superRefine((value, context) => {
+  if (value.shippingMethod === "EKSPEDISI" && !value.carrierName) context.addIssue({ code: "custom", path: ["carrierName"], message: "Nama ekspedisi wajib diisi." });
+});
+
+export type UptdApprovalInput = z.infer<typeof uptdApprovalSchema>;
+export type SampleShipmentInput = z.infer<typeof sampleShipmentSchema>;
+
+export const sampleReviewSchema = z.object({
+  personnelReady: z.boolean(),
+  equipmentReady: z.boolean(),
+  methodAvailable: z.boolean(),
+  laboratoryCapable: z.boolean(),
+  subcontractRequired: z.boolean(),
+  parameters: z.array(z.object({
+    applicationParameterId: idSchema,
+    decision: z.enum(["DAPAT_DIUJI_INTERNAL", "SUBKONTRAK"]),
+    notes: z.string().trim().max(1000).default(""),
+  })).min(1).max(500),
+  notes: z.string().trim().max(3000).default(""),
+}).superRefine((value, context) => {
+  const internallyReady = value.personnelReady && value.equipmentReady && value.methodAvailable && value.laboratoryCapable;
+  const hasInternal = value.parameters.some((item) => item.decision === "DAPAT_DIUJI_INTERNAL");
+  const hasSubcontract = value.parameters.some((item) => item.decision === "SUBKONTRAK");
+  if (hasInternal && !internallyReady) {
+    context.addIssue({ code: "custom", path: ["parameters"], message: "Parameter internal mensyaratkan seluruh kesiapan laboratorium terpenuhi." });
+  }
+  if (hasSubcontract && !value.subcontractRequired) {
+    context.addIssue({ code: "custom", path: ["subcontractRequired"], message: "Kebutuhan subkontrak harus dipilih untuk keputusan subkontrak." });
+  }
+  value.parameters.forEach((item, index) => { if (item.decision === "SUBKONTRAK" && !item.notes) context.addIssue({ code: "custom", path: ["parameters", index, "notes"], message: "Alasan subkontrak wajib diisi." }); });
+});
+
+export type SampleReviewInput = z.infer<typeof sampleReviewSchema>;

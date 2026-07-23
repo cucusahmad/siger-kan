@@ -1,7 +1,7 @@
 import { AuditAction, Prisma, TestingApplicationStatus } from "@/app/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import type { RequestContext } from "@/lib/request-context";
-import type { DraftApplicationInput, ReceptionReviewInput, SubmitApplicationInput } from "./testing-application.schema";
+import type { DraftApplicationInput, ReceptionReviewInput, SubmitApplicationInput, UptdApprovalInput } from "./testing-application.schema";
 
 interface Owner { readonly userId: string; readonly businessId: bigint }
 
@@ -11,7 +11,7 @@ async function businessProfileId(owner: Owner, transaction: Prisma.TransactionCl
   return profile.id;
 }
 
-const detailInclude = { laboratory: { select: { id: true, code: true, name: true, address: true } }, businessProfile: { select: { id: true, businessType: true, tradeName: true, nib: true, picName: true, picPosition: true, email: true, phone: true, whatsapp: true, addressLine: true, postalCode: true, business: { select: { name: true, businessCode: true } }, province: { select: { name: true } }, regency: { select: { name: true } }, district: { select: { name: true } }, village: { select: { name: true } } } }, product: true, samples: { where: { deletedAt: null }, orderBy: { id: "asc" as const } }, parameters: { include: { parameter: { include: { category: true } }, sample: { select: { id: true, sampleName: true } } } }, documents: { where: { deletedAt: null }, orderBy: { uploadedAt: "desc" as const } } } as const;
+const detailInclude = { laboratory: { select: { id: true, code: true, name: true, address: true } }, businessProfile: { select: { id: true, businessType: true, tradeName: true, nib: true, picName: true, picPosition: true, email: true, phone: true, whatsapp: true, addressLine: true, postalCode: true, business: { select: { name: true, businessCode: true } }, province: { select: { name: true } }, regency: { select: { name: true } }, district: { select: { name: true } }, village: { select: { name: true } } } }, product: true, samples: { where: { deletedAt: null }, orderBy: { id: "asc" as const } }, parameters: { include: { parameter: { include: { category: true } }, sample: { select: { id: true, sampleName: true } } } }, documents: { where: { deletedAt: null }, orderBy: { uploadedAt: "desc" as const } }, sampleShipment: { include: { evidence: { select: { id: true, fileName: true, mimeType: true, fileSize: true } } } }, sampleReview: true } as const;
 
 function serialize(value: unknown): unknown {
   return JSON.parse(JSON.stringify(value, (_key, item: unknown) => typeof item === "bigint" ? item.toString() : item instanceof Prisma.Decimal ? item.toString() : item));
@@ -79,7 +79,7 @@ export async function submitApplication(owner: Owner, id: string, input: SubmitA
 }
 
 export async function listReceptionApplications(query: { readonly search?: string; readonly status?: TestingApplicationStatus }) {
-  const where: Prisma.TestingApplicationWhereInput = { deletedAt: null, status: query.status ? query.status : { in: ["DIAJUKAN", "PERLU_PERBAIKAN", "DISETUJUI"] }, ...(query.search ? { OR: [{ applicationNumber: { contains: query.search, mode: "insensitive" } }, { businessProfile: { business: { name: { contains: query.search, mode: "insensitive" } } } }, { product: { productName: { contains: query.search, mode: "insensitive" } } }] } : {}) };
+  const where: Prisma.TestingApplicationWhereInput = { deletedAt: null, status: query.status ? query.status : { in: ["DIAJUKAN", "PERLU_PERBAIKAN", "MENUNGGU_PERSETUJUAN_UPTD", "MENUNGGU_SAMPEL", "SAMPEL_DIKIRIM", "KAJI_ULANG"] }, ...(query.search ? { OR: [{ applicationNumber: { contains: query.search, mode: "insensitive" } }, { businessProfile: { business: { name: { contains: query.search, mode: "insensitive" } } } }, { product: { productName: { contains: query.search, mode: "insensitive" } } }] } : {}) };
   return serialize(await prisma.testingApplication.findMany({ where, orderBy: [{ submittedAt: "asc" }, { id: "asc" }], select: { id: true, applicationNumber: true, status: true, submittedAt: true, updatedAt: true, correctionNotes: true, businessProfile: { select: { business: { select: { name: true } } } }, laboratory: { select: { name: true } }, product: { select: { productName: true } }, _count: { select: { samples: { where: { deletedAt: null } }, documents: { where: { deletedAt: null } } } } } }));
 }
 
@@ -93,9 +93,30 @@ export async function reviewReceptionApplication(userId: string, id: string, inp
   return prisma.$transaction(async (transaction) => {
     const item = await transaction.testingApplication.findFirst({ where: { id: BigInt(id), status: "DIAJUKAN", deletedAt: null }, select: { id: true, status: true, businessProfile: { select: { businessId: true } } } });
     if (!item) throw new Error("INVALID_STATUS");
-    const status = input.decision === "APPROVE" ? TestingApplicationStatus.DISETUJUI : TestingApplicationStatus.PERLU_PERBAIKAN;
+    const status = input.decision === "APPROVE" ? TestingApplicationStatus.MENUNGGU_PERSETUJUAN_UPTD : TestingApplicationStatus.PERLU_PERBAIKAN;
     const application = await transaction.testingApplication.update({ where: { id: item.id }, data: { status, receptionChecklist: input.checklist, correctionNotes: input.notes || null, reviewedById: BigInt(userId), reviewedAt: new Date() }, include: detailInclude });
     await transaction.auditLog.create({ data: { actorUserId: BigInt(userId), businessId: item.businessProfile.businessId, action: input.decision === "APPROVE" ? AuditAction.APPROVE : AuditAction.REJECT, entityType: "TESTING_APPLICATION_RECEPTION", entityId: item.id.toString(), previousValue: { status: item.status }, newValue: { status, checklist: input.checklist, notes: input.notes }, ipAddress: context.ipAddress, userAgent: context.userAgent } });
+    return serialize(application);
+  });
+}
+
+export async function listUptdApprovalApplications() {
+  return serialize(await prisma.testingApplication.findMany({
+    where: { status: "MENUNGGU_PERSETUJUAN_UPTD", deletedAt: null },
+    orderBy: [{ reviewedAt: "asc" }, { id: "asc" }],
+    select: { id: true, applicationNumber: true, reviewedAt: true, businessProfile: { select: { business: { select: { name: true } } } }, laboratory: { select: { name: true } }, product: { select: { productName: true } } },
+  }));
+}
+
+export async function decideUptdApproval(userId: string, id: string, input: UptdApprovalInput, context: RequestContext) {
+  return prisma.$transaction(async (transaction) => {
+    const item = await transaction.testingApplication.findFirst({ where: { id: BigInt(id), status: "MENUNGGU_PERSETUJUAN_UPTD", deletedAt: null }, select: { id: true, status: true, applicationNumber: true, businessProfile: { select: { businessId: true } } } });
+    if (!item) throw new Error("INVALID_STATUS");
+    const status = input.decision === "APPROVE" ? TestingApplicationStatus.MENUNGGU_SAMPEL : TestingApplicationStatus.DITOLAK;
+    const application = await transaction.testingApplication.update({ where: { id: item.id }, data: { status, approvedById: BigInt(userId), approvedAt: new Date(), approvalNotes: input.notes || null }, include: detailInclude });
+    const recipients = await transaction.businessMember.findMany({ where: { businessId: item.businessProfile.businessId, status: "ACTIVE", deletedAt: null }, select: { userId: true } });
+    await transaction.notification.createMany({ data: recipients.map(({ userId }) => ({ userId, title: input.decision === "APPROVE" ? "Permohonan disetujui Kepala UPTD" : "Permohonan ditolak Kepala UPTD", message: input.decision === "APPROVE" ? `Permohonan ${item.applicationNumber ?? "pengujian"} telah disetujui. Silakan kirim sampel fisik dan isi Berita Pengiriman Sampel.` : `Permohonan ${item.applicationNumber ?? "pengujian"} ditolak. ${input.notes}`, href: `/dashboard/permohonan/${item.id}` })) });
+    await transaction.auditLog.create({ data: { actorUserId: BigInt(userId), businessId: item.businessProfile.businessId, action: input.decision === "APPROVE" ? AuditAction.APPROVE : AuditAction.REJECT, entityType: "TESTING_APPLICATION_UPTD_APPROVAL", entityId: item.id.toString(), previousValue: { status: item.status }, newValue: { status, notes: input.notes }, ipAddress: context.ipAddress, userAgent: context.userAgent } });
     return serialize(application);
   });
 }

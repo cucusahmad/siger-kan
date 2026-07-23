@@ -29,6 +29,7 @@ export interface DashboardNavigationGroup {
   readonly label: string;
   readonly icon: DashboardIconKey;
   readonly items: readonly DashboardNavigationItem[];
+  readonly allowedRoles?: readonly string[];
 }
 
 export interface DashboardNavigationContext {
@@ -38,8 +39,6 @@ export interface DashboardNavigationContext {
 }
 
 const externalRoles = ["PELAKU_USAHA"] as const;
-const adminDinasRoles = ["ADMIN_DINAS", "SUPER_ADMIN"] as const;
-
 export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
   {
     label: "Dashboard",
@@ -49,11 +48,19 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
   {
     label: "Pelaku Usaha",
     icon: "building",
+    allowedRoles: externalRoles,
     items: [
-      { label: "Data Pelaku Usaha", href: "/dashboard/pelaku-usaha", icon: "building", allowedRoles: adminDinasRoles },
-      { label: "Profil Usaha", href: "/dashboard/business", icon: "briefcaseBusiness", requiredPermissions: ["business.read"], excludedRoles: ["ADMIN_DINAS"] },
-      { label: "Legalitas Usaha", href: "/dashboard/business/legal-documents", icon: "fileBadge", requiredPermissions: ["business.document.read"], excludedRoles: ["ADMIN_DINAS"] },
-      { label: "Komoditas", href: "/dashboard/business/commodities", icon: "packageSearch", requiredPermissions: ["business.read"], excludedRoles: ["ADMIN_DINAS"] },
+      { label: "Profil Usaha", href: "/dashboard/business", icon: "briefcaseBusiness", requiredPermissions: ["business.read"] },
+      { label: "Legalitas Usaha", href: "/dashboard/business/legal-documents", icon: "fileBadge", requiredPermissions: ["business.document.read"] },
+      { label: "Komoditas", href: "/dashboard/business/commodities", icon: "packageSearch", requiredPermissions: ["business.read"] },
+    ],
+  },
+  {
+    label: "Data Pelaku Usaha",
+    icon: "building",
+    allowedRoles: ["ADMIN_DINAS", "KEPALA_UPTD", "SUPER_ADMIN"],
+    items: [
+      { label: "Daftar Pelaku Usaha", href: "/dashboard/pelaku-usaha", icon: "building", allowedRoles: ["ADMIN_DINAS", "KEPALA_UPTD", "SUPER_ADMIN"] },
     ],
   },
   {
@@ -62,6 +69,9 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     items: [
       { label: "Pengajuan Pengujian", href: "/dashboard/permohonan", icon: "fileBadge", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
       { label: "Penerimaan Sampel", href: "/dashboard/quality-testing/sample-reception", icon: "packageSearch", requiredPermissions: ["laboratory.sample.receive"] },
+      { label: "Persetujuan Kepala UPTD", href: "/dashboard/quality-testing/uptd-approval", icon: "clipboardCheck", allowedRoles: ["KEPALA_UPTD"] },
+      { label: "Penugasan Pengujian", href: "/dashboard/quality-testing/work-orders", icon: "clipboardCheck", allowedRoles: ["PENYELIA_LAB", "ANALIS_LAB"] },
+      { label: "Pengiriman Laboratorium Mitra", href: "/dashboard/quality-testing/subcontract", icon: "packageSearch", allowedRoles: ["PENYELIA_LAB"] },
       { label: "Tracking Proses Laboratorium", href: "/dashboard/quality-testing/tracking", icon: "beaker", requiredPermissions: ["laboratory.request.read", "laboratory.sample.test"] },
       { label: "Verifikasi Hasil", href: "/dashboard/quality-testing/result-verification", icon: "clipboardCheck", requiredPermissions: ["laboratory.result.review", "laboratory.result.approve"] },
       { label: "Unduh Laporan Hasil Uji", href: "/dashboard/quality-testing/reports", icon: "fileChart", requiredPermissions: ["laboratory.request.read", "report.read"] },
@@ -120,6 +130,7 @@ export function getVisibleNavigation(
   context: DashboardNavigationContext,
 ): readonly DashboardNavigationGroup[] {
   return dashboardNavigation
+    .filter((group) => !group.allowedRoles || group.allowedRoles.some((role) => context.roleCodes.includes(role)))
     .map((group) => ({ ...group, items: group.items.filter((item) => isNavigationItemVisible(item, context)) }))
     .filter((group) => group.items.length > 0);
 }
@@ -133,7 +144,7 @@ export function getDashboardBreadcrumbs(pathname: string): readonly { readonly l
   if (pathname === "/dashboard") return [{ label: "Dashboard" }];
   if (pathname.startsWith("/dashboard/pelaku-usaha/")) return [
     { label: "Dashboard", href: "/dashboard" },
-    { label: "Pelaku Usaha", href: "/dashboard" },
+    { label: "Pelaku Usaha", href: "/dashboard/pelaku-usaha" },
     { label: "Detail Pelaku Usaha" },
   ];
   for (const group of dashboardNavigation) {

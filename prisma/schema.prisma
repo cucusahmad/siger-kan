@@ -113,12 +113,47 @@ enum TestingApplicationStatus {
   DRAFT
   DIAJUKAN
   PERLU_PERBAIKAN
+  MENUNGGU_PERSETUJUAN_UPTD
   DISETUJUI
   MENUNGGU_SAMPEL
+  SAMPEL_DIKIRIM
   SAMPEL_DITERIMA
+  KAJI_ULANG
   DALAM_PENGUJIAN
   SELESAI
   DITOLAK
+}
+
+enum SampleReviewDecision {
+  DAPAT_DIUJI_INTERNAL
+  SUBKONTRAK
+}
+
+enum TestingWorkOrderType {
+  INTERNAL
+  SUBCONTRACT
+}
+
+enum TestingWorkOrderStatus {
+  MENUNGGU_PENUGASAN_ANALIS
+  MENUNGGU_PENGIRIMAN_LAB_MITRA
+  DALAM_PENGUJIAN
+  MENUNGGU_VERIFIKASI_PENYELIA
+}
+
+enum TestingWorkOrderPriority {
+  RENDAH
+  NORMAL
+  TINGGI
+  MENDESAK
+}
+
+enum TestingWorkOrderDocumentType {
+  LAPORAN_HASIL_UJI
+  WORKSHEET
+  CERTIFICATE_OF_ANALYSIS
+  FOTO_HASIL
+  DOKUMEN_PENDUKUNG_LAIN
 }
 
 enum TestingPurpose {
@@ -201,19 +236,25 @@ model User {
   updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(3)
 
-  profile                 UserProfile?
-  roles                   UserRole[]               @relation("UserRoles")
-  roleAssignmentsMade     UserRole[]               @relation("UserRoleAssigner")
-  sessions                UserSession[]
-  emailVerificationTokens EmailVerificationToken[]
-  passwordResetTokens     PasswordResetToken[]
-  businessMemberships     BusinessMember[]         @relation("BusinessMembers")
-  businessInvitationsMade BusinessMember[]         @relation("BusinessMemberInviter")
-  uploadedDocuments       BusinessLegalDocument[]  @relation("DocumentUploader")
-  verifiedDocuments       BusinessLegalDocument[]  @relation("DocumentVerifier")
-  consents                UserConsent[]
-  auditLogs               AuditLog[]               @relation("AuditActor")
-  reviewedTestingApplications TestingApplication[] @relation("TestingApplicationReviewer")
+  profile                     UserProfile?
+  roles                       UserRole[]                 @relation("UserRoles")
+  roleAssignmentsMade         UserRole[]                 @relation("UserRoleAssigner")
+  sessions                    UserSession[]
+  emailVerificationTokens     EmailVerificationToken[]
+  passwordResetTokens         PasswordResetToken[]
+  businessMemberships         BusinessMember[]           @relation("BusinessMembers")
+  businessInvitationsMade     BusinessMember[]           @relation("BusinessMemberInviter")
+  uploadedDocuments           BusinessLegalDocument[]    @relation("DocumentUploader")
+  verifiedDocuments           BusinessLegalDocument[]    @relation("DocumentVerifier")
+  consents                    UserConsent[]
+  auditLogs                   AuditLog[]                 @relation("AuditActor")
+  reviewedTestingApplications TestingApplication[]       @relation("TestingApplicationReviewer")
+  approvedTestingApplications TestingApplication[]       @relation("TestingApplicationApprover")
+  notifications               Notification[]
+  sampleReviews               SampleReview[]
+  assignedTestingWorkOrders   TestingWorkOrder[]         @relation("TestingWorkOrderAnalyst")
+  assignedWorkOrdersByUser    TestingWorkOrder[]         @relation("TestingWorkOrderAssigner")
+  uploadedWorkOrderDocuments  TestingWorkOrderDocument[]
 
   @@index([status, deletedAt])
   @@index([type, status])
@@ -572,7 +613,8 @@ model Laboratory {
   updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt DateTime? @map("deleted_at") @db.Timestamptz(3)
 
-  applications TestingApplication[]
+  applications          TestingApplication[]
+  subcontractWorkOrders TestingWorkOrder[]   @relation("TestingWorkOrderPartnerLaboratory")
 
   @@index([isActive, deletedAt])
   @@map("laboratories")
@@ -631,6 +673,9 @@ model TestingApplication {
   correctionNotes     String?                  @map("correction_notes") @db.Text
   reviewedById        BigInt?                  @map("reviewed_by_id")
   reviewedAt          DateTime?                @map("reviewed_at") @db.Timestamptz(3)
+  approvedById        BigInt?                  @map("approved_by_id")
+  approvedAt          DateTime?                @map("approved_at") @db.Timestamptz(3)
+  approvalNotes       String?                  @map("approval_notes") @db.Text
   createdAt           DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt           DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt           DateTime?                @map("deleted_at") @db.Timestamptz(3)
@@ -642,12 +687,166 @@ model TestingApplication {
   parameters      ApplicationTestingParameter[]
   documents       ApplicationDocument[]
   reviewedBy      User?                         @relation("TestingApplicationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  approvedBy      User?                         @relation("TestingApplicationApprover", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  sampleShipment  SampleShipment?
+  sampleReview    SampleReview?
+  workOrders      TestingWorkOrder[]
 
   @@index([businessProfileId, status, deletedAt])
   @@index([laboratoryId])
   @@index([reviewedById])
+  @@index([approvedById])
   @@index([createdAt])
   @@map("testing_applications")
+}
+
+model SampleReview {
+  id                   BigInt               @id @default(autoincrement())
+  testingApplicationId BigInt               @unique @map("testing_application_id")
+  personnelReady       Boolean              @map("personnel_ready")
+  equipmentReady       Boolean              @map("equipment_ready")
+  methodAvailable      Boolean              @map("method_available")
+  laboratoryCapable    Boolean              @map("laboratory_capable")
+  subcontractRequired  Boolean              @map("subcontract_required")
+  decision             SampleReviewDecision
+  notes                String?              @db.Text
+  reviewedById         BigInt               @map("reviewed_by_id")
+  reviewedAt           DateTime             @default(now()) @map("reviewed_at") @db.Timestamptz(3)
+  createdAt            DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application TestingApplication      @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  reviewedBy  User                    @relation(fields: [reviewedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  parameters  SampleReviewParameter[]
+
+  @@index([decision, reviewedAt])
+  @@index([reviewedById])
+  @@map("sample_reviews")
+}
+
+model SampleReviewParameter {
+  id                            BigInt               @id @default(autoincrement())
+  sampleReviewId                BigInt               @map("sample_review_id")
+  applicationTestingParameterId BigInt               @unique @map("application_testing_parameter_id")
+  decision                      SampleReviewDecision
+  notes                         String?              @db.Text
+  createdAt                     DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  sampleReview         SampleReview                @relation(fields: [sampleReviewId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  applicationParameter ApplicationTestingParameter @relation(fields: [applicationTestingParameterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([sampleReviewId, decision])
+  @@map("sample_review_parameters")
+}
+
+model TestingWorkOrder {
+  id                            BigInt                   @id @default(autoincrement())
+  workOrderNumber               String                   @unique @map("work_order_number") @db.VarChar(48)
+  testingApplicationId          BigInt                   @map("testing_application_id")
+  applicationTestingParameterId BigInt                   @unique @map("application_testing_parameter_id")
+  type                          TestingWorkOrderType
+  status                        TestingWorkOrderStatus
+  priority                      TestingWorkOrderPriority @default(NORMAL)
+  analystId                     BigInt?                  @map("analyst_id")
+  assignedById                  BigInt?                  @map("assigned_by_id")
+  assignedAt                    DateTime?                @map("assigned_at") @db.Timestamptz(3)
+  targetCompletionDate          DateTime?                @map("target_completion_date") @db.Date
+  testingMethod                 String?                  @map("testing_method") @db.VarChar(250)
+  laboratoryEquipment           String?                  @map("laboratory_equipment") @db.VarChar(250)
+  laboratoryRoom                String?                  @map("laboratory_room") @db.VarChar(160)
+  workInstructions              String?                  @map("work_instructions") @db.Text
+  analystNotes                  String?                  @map("analyst_notes") @db.Text
+  partnerLaboratoryId           BigInt?                  @map("partner_laboratory_id")
+  sentToSupervisorAt            DateTime?                @map("sent_to_supervisor_at") @db.Timestamptz(3)
+  createdAt                     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                     DateTime?                @map("deleted_at") @db.Timestamptz(3)
+
+  application          TestingApplication          @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  applicationParameter ApplicationTestingParameter @relation(fields: [applicationTestingParameterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  analyst              User?                       @relation("TestingWorkOrderAnalyst", fields: [analystId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  assignedBy           User?                       @relation("TestingWorkOrderAssigner", fields: [assignedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  partnerLaboratory    Laboratory?                 @relation("TestingWorkOrderPartnerLaboratory", fields: [partnerLaboratoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  documents            TestingWorkOrderDocument[]
+
+  @@index([testingApplicationId, type, status])
+  @@index([analystId, status, deletedAt])
+  @@index([partnerLaboratoryId, status])
+  @@map("testing_work_orders")
+}
+
+model TestingWorkOrderDocument {
+  id                 BigInt                       @id @default(autoincrement())
+  testingWorkOrderId BigInt                       @map("testing_work_order_id")
+  type               TestingWorkOrderDocumentType
+  fileName           String                       @map("file_name") @db.VarChar(255)
+  filePath           String                       @map("file_path") @db.VarChar(500)
+  mimeType           String                       @map("mime_type") @db.VarChar(120)
+  fileSize           BigInt                       @map("file_size")
+  uploadedById       BigInt                       @map("uploaded_by_id")
+  uploadedAt         DateTime                     @default(now()) @map("uploaded_at") @db.Timestamptz(3)
+  createdAt          DateTime                     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?                    @map("deleted_at") @db.Timestamptz(3)
+
+  workOrder  TestingWorkOrder @relation(fields: [testingWorkOrderId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploadedBy User             @relation(fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([testingWorkOrderId, type, deletedAt])
+  @@index([uploadedById])
+  @@map("testing_work_order_documents")
+}
+
+model SampleShipment {
+  id                   BigInt   @id @default(autoincrement())
+  testingApplicationId BigInt   @unique @map("testing_application_id")
+  shippingDate         DateTime @map("shipping_date") @db.Date
+  shippingMethod       String   @map("shipping_method") @db.VarChar(40)
+  carrierName          String?  @map("carrier_name") @db.VarChar(160)
+  trackingNumber       String?  @map("tracking_number") @db.VarChar(120)
+  packageCount         Int      @map("package_count")
+  conditionNotes       String?  @map("condition_notes") @db.Text
+  senderName           String   @map("sender_name") @db.VarChar(160)
+  createdById          BigInt   @map("created_by_id")
+  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  application TestingApplication       @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  evidence    SampleShipmentEvidence[]
+
+  @@index([createdById])
+  @@map("sample_shipments")
+}
+
+model SampleShipmentEvidence {
+  id               BigInt   @id @default(autoincrement())
+  sampleShipmentId BigInt   @map("sample_shipment_id")
+  fileName         String   @map("file_name") @db.VarChar(255)
+  filePath         String   @map("file_path") @db.VarChar(500)
+  mimeType         String   @map("mime_type") @db.VarChar(120)
+  fileSize         BigInt   @map("file_size")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  shipment SampleShipment @relation(fields: [sampleShipmentId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([sampleShipmentId])
+  @@map("sample_shipment_evidence")
+}
+
+model Notification {
+  id        BigInt    @id @default(autoincrement())
+  userId    BigInt    @map("user_id")
+  title     String    @db.VarChar(180)
+  message   String    @db.Text
+  href      String?   @db.VarChar(500)
+  readAt    DateTime? @map("read_at") @db.Timestamptz(3)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@map("notifications")
 }
 
 model TestingApplicationProduct {
@@ -700,9 +899,11 @@ model ApplicationTestingParameter {
   testingParameterId   BigInt   @map("testing_parameter_id")
   createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
-  application TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  sample      TestingSample      @relation(fields: [testingSampleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
-  parameter   TestingParameter   @relation(fields: [testingParameterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  application           TestingApplication     @relation(fields: [testingApplicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sample                TestingSample          @relation(fields: [testingSampleId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  parameter             TestingParameter       @relation(fields: [testingParameterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  sampleReviewParameter SampleReviewParameter?
+  workOrder             TestingWorkOrder?
 
   @@unique([testingApplicationId, testingSampleId, testingParameterId])
   @@index([testingSampleId])

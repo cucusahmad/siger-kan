@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { mkdir, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { ApplicationDocumentType, AuditAction } from "@/app/generated/prisma/client";
 import { resolveCurrentBusiness } from "@/lib/business/get-current-business";
@@ -25,4 +25,32 @@ export async function deleteApplicationDocument(userId: string, applicationId: s
   const membership = await resolveCurrentBusiness(userId); if (!membership) throw new Error("BUSINESS_REQUIRED");
   const document = await prisma.applicationDocument.findFirst({ where: { id: BigInt(documentId), testingApplicationId: BigInt(applicationId), deletedAt: null, application: { status: "DRAFT", deletedAt: null, businessProfile: { businessId: membership.businessId } } } }); if (!document) throw new Error("NOT_DRAFT");
   await prisma.$transaction(async (transaction) => { await transaction.applicationDocument.update({ where: { id: document.id }, data: { deletedAt: new Date() } }); await transaction.auditLog.create({ data: { actorUserId: BigInt(userId), businessId: membership.businessId, action: AuditAction.DELETE, entityType: "APPLICATION_DOCUMENT", entityId: document.id.toString(), ipAddress: context.ipAddress, userAgent: context.userAgent } }); }); await unlink(target(document.filePath)).catch(() => undefined);
+}
+
+export async function serveApplicationDocumentForReception(applicationId: string, documentId: string): Promise<Response> {
+  const document = await prisma.applicationDocument.findFirst({
+    where: {
+      id: BigInt(documentId), testingApplicationId: BigInt(applicationId), deletedAt: null,
+      application: { deletedAt: null, status: { in: ["DIAJUKAN", "PERLU_PERBAIKAN", "DISETUJUI"] } },
+    },
+    select: { fileName: true, filePath: true, mimeType: true },
+  });
+  if (!document) throw new Error("NOT_FOUND");
+
+  try {
+    const filePath = target(document.filePath);
+    const [bytes, fileStat] = await Promise.all([readFile(filePath), stat(filePath)]);
+    if (!fileStat.isFile()) throw new Error("FILE_UNAVAILABLE");
+    const fileName = sanitizeOriginalFileName(document.fileName);
+    const asciiName = fileName.replace(/[^\x20-\x7E]/g, "_").replace(/["\\]/g, "_");
+    const encodedName = encodeURIComponent(fileName).replace(/[!'()*]/g, (character) => `%${character.charCodeAt(0).toString(16).toUpperCase()}`);
+    return new Response(Uint8Array.from(bytes), { headers: {
+      "Content-Type": document.mimeType, "Content-Length": fileStat.size.toString(),
+      "Content-Disposition": `inline; filename="${asciiName}"; filename*=UTF-8''${encodedName}`,
+      "X-Content-Type-Options": "nosniff", "Cache-Control": "private, no-store, max-age=0",
+    } });
+  } catch (error: unknown) {
+    console.error("Application document file is unavailable", { applicationId, documentId, error });
+    throw new Error("FILE_UNAVAILABLE", { cause: error });
+  }
 }

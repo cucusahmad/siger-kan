@@ -8,7 +8,7 @@ import { redirect } from "next/navigation";
 
 interface Props { readonly searchParams: Promise<{ readonly q?: string; readonly status?: string; readonly updated?: string }> }
 interface Item { readonly id: string; readonly applicationNumber: string | null; readonly status: string; readonly submittedAt: string | null; readonly businessProfile: { readonly business: { readonly name: string } }; readonly laboratory: { readonly name: string } | null; readonly product: { readonly productName: string | null } | null; readonly _count: { readonly samples: number; readonly documents: number } }
-const statuses = ["DIAJUKAN", "PERLU_PERBAIKAN", "DISETUJUI"] as const;
+const statuses = ["DIAJUKAN", "PERLU_PERBAIKAN", "MENUNGGU_PERSETUJUAN_UPTD", "MENUNGGU_SAMPEL", "SAMPEL_DIKIRIM", "KAJI_ULANG"] as const;
 
 export default async function SampleReceptionPage({ searchParams }: Props) {
   try { await requireSampleReceptionOfficer(); } catch (error) { if (error instanceof Error && error.message === "UNAUTHENTICATED") redirect("/login"); redirect("/dashboard"); }

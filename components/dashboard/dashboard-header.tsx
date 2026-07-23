@@ -1,6 +1,7 @@
 "use client";
 
 import { Bell, Menu, Search } from "lucide-react";
+import Link from "next/link";
 
 import type { DashboardUserSummary } from "./dashboard-user-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
@@ -20,7 +21,7 @@ export function DashboardHeader({ pageTitle, user, onOpenNavigation }: Dashboard
         <div className="flex min-h-11 items-center gap-3 rounded-xl border border-slate-200 bg-slate-50 px-4 text-sm text-muted" aria-label="Pencarian belum tersedia"><Search className="h-4 w-4" /><span>Cari layanan atau informasi...</span><span className="ml-auto rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[10px]">Segera</span></div>
       </div>
       <div className="ml-auto flex items-center gap-1 sm:gap-2">
-        <button type="button" aria-label="Notifikasi, belum ada notifikasi baru" className="relative flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:bg-slate-100 hover:text-navy focus-visible:outline-2 focus-visible:outline-ocean"><Bell className="h-5 w-5" /><span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border-2 border-white bg-gold" /></button>
+        <Link href="/dashboard/notifications" aria-label="Buka notifikasi" className="relative flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:bg-slate-100 hover:text-navy focus-visible:outline-2 focus-visible:outline-ocean"><Bell className="h-5 w-5" /><span className="absolute right-2.5 top-2.5 h-2 w-2 rounded-full border-2 border-white bg-gold" /></Link>
         <DashboardUserMenu user={user} />
       </div>
     </header>

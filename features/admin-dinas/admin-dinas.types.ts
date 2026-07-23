@@ -4,8 +4,10 @@ export interface AdminBusinessSummary {
   readonly name: string;
   readonly ownerName: string;
   readonly ownerEmail: string;
+  readonly phone: string;
   readonly businessType: string;
   readonly location: string;
+  readonly region: string;
   readonly status: string;
   readonly commodityCount: number;
   readonly documentCount: number;
