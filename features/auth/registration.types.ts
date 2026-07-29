@@ -8,6 +8,12 @@ export interface RegistrationResult {
   readonly registrationStatus: "PENDING_VERIFICATION";
 }
 
+export interface RegistrationCommodityOption {
+  readonly id: string;
+  readonly name: string;
+  readonly isOther: boolean;
+}
+
 export interface RegistrationRequestContext {
   readonly ipAddress: string | null;
   readonly userAgent: string | null;

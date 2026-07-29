@@ -5,6 +5,7 @@ import { Check, CheckCircle2, LoaderCircle, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
+import type { RegistrationCommodityOption } from "@/features/auth/registration.types";
 import { AccountSection } from "./account-section";
 import { BusinessSection } from "./business-section";
 import { registrationSchema, type RegistrationFormValues } from "./registration-schema";
@@ -23,24 +24,17 @@ const businessTypeCodes = {
   Lainnya: "OTHER",
 } as const;
 
-const commodityCodes = {
-  Udang: "UDANG",
-  Tuna: "TUNA",
-  Cakalang: "CAKALANG",
-  Bandeng: "BANDENG",
-  "Rumput Laut": "RUMPUT_LAUT",
-  Kepiting: "KEPITING",
-  Lobster: "LOBSTER",
-  Lainnya: "LAINNYA",
-} as const;
-
 interface RegistrationApiResponse {
   readonly success: boolean;
   readonly message: string;
   readonly errors?: Readonly<Record<string, readonly string[]>>;
 }
 
-export function RegistrationCard() {
+interface RegistrationCardProps {
+  readonly commodities: readonly RegistrationCommodityOption[];
+}
+
+export function RegistrationCard({ commodities }: RegistrationCardProps) {
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -67,7 +61,7 @@ export function RegistrationCard() {
           businessName: values.businessName,
           businessType: businessTypeCodes[values.businessType],
           businessTypeOther: values.businessTypeOther || null,
-          commodityId: commodityCodes[values.commodity],
+          commodityId: values.commodity,
           commodityOther: values.commodityOther || null,
           cityRegency: values.region,
           province: values.province,
@@ -137,7 +131,7 @@ export function RegistrationCard() {
       <form onSubmit={handleSubmit(onSubmit)} noValidate className="space-y-8">
         <AccountSection errors={errors} register={register} watch={watch} showPassword={showPassword} showConfirmPassword={showConfirmPassword} togglePassword={() => setShowPassword((value) => !value)} toggleConfirmPassword={() => setShowConfirmPassword((value) => !value)} />
         <div className="h-px bg-navy/8" />
-        <BusinessSection errors={errors} register={register} watch={watch} />
+        <BusinessSection commodities={commodities} errors={errors} register={register} watch={watch} />
 
         <div>
           <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-navy/8 bg-slate-50/70 p-4 transition hover:border-ocean/25">

@@ -89,6 +89,48 @@ enum CommodityPriority {
   SECONDARY
 }
 
+enum ProductStatus {
+  DRAFT
+  PENDING_VERIFICATION
+  REVISION_REQUIRED
+  VERIFIED
+  REJECTED
+  INACTIVE
+}
+
+enum ProductAvailability {
+  READY_STOCK
+  PREORDER
+  SEASONAL
+  OUT_OF_STOCK
+}
+
+enum ProductionCapacityPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
+}
+
+enum ProductMarketScope {
+  LOCAL
+  NATIONAL
+  EXPORT
+}
+
+enum BusinessNeedStatus {
+  DRAFT
+  PUBLISHED
+  CLOSED
+}
+
+enum BusinessOfferStatus {
+  SUBMITTED
+  ACCEPTED
+  REJECTED
+  WITHDRAWN
+}
+
 enum LegalDocumentType {
   NIB
   BUSINESS_LICENSE
@@ -245,29 +287,30 @@ model User {
   updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(3)
 
-  profile                     UserProfile?
-  roles                       UserRole[]                 @relation("UserRoles")
-  roleAssignmentsMade         UserRole[]                 @relation("UserRoleAssigner")
-  sessions                    UserSession[]
-  emailVerificationTokens     EmailVerificationToken[]
-  passwordResetTokens         PasswordResetToken[]
-  businessMemberships         BusinessMember[]           @relation("BusinessMembers")
-  businessInvitationsMade     BusinessMember[]           @relation("BusinessMemberInviter")
-  uploadedDocuments           BusinessLegalDocument[]    @relation("DocumentUploader")
-  verifiedDocuments           BusinessLegalDocument[]    @relation("DocumentVerifier")
-  consents                    UserConsent[]
-  auditLogs                   AuditLog[]                 @relation("AuditActor")
-  reviewedTestingApplications TestingApplication[]       @relation("TestingApplicationReviewer")
-  approvedTestingApplications TestingApplication[]       @relation("TestingApplicationApprover")
-  notifications               Notification[]
-  sampleReviews               SampleReview[]
-  assignedTestingWorkOrders   TestingWorkOrder[]         @relation("TestingWorkOrderAnalyst")
-  assignedWorkOrdersByUser    TestingWorkOrder[]         @relation("TestingWorkOrderAssigner")
-  uploadedWorkOrderDocuments  TestingWorkOrderDocument[]
-  reviewedTestingWorkOrders   TestingWorkOrder[]         @relation("TestingWorkOrderReviewer")
-  preparedLaboratoryReports   LaboratoryTestReport[]     @relation("LaboratoryTestReportPreparer")
-  approvedLaboratoryReports   LaboratoryTestReport[]     @relation("LaboratoryTestReportApprover")
-  uploadedFinalLaboratoryReports LaboratoryTestReport[]  @relation("LaboratoryTestReportFinalUploader")
+  profile                        UserProfile?
+  roles                          UserRole[]                 @relation("UserRoles")
+  roleAssignmentsMade            UserRole[]                 @relation("UserRoleAssigner")
+  sessions                       UserSession[]
+  emailVerificationTokens        EmailVerificationToken[]
+  passwordResetTokens            PasswordResetToken[]
+  businessMemberships            BusinessMember[]           @relation("BusinessMembers")
+  businessInvitationsMade        BusinessMember[]           @relation("BusinessMemberInviter")
+  uploadedDocuments              BusinessLegalDocument[]    @relation("DocumentUploader")
+  verifiedDocuments              BusinessLegalDocument[]    @relation("DocumentVerifier")
+  consents                       UserConsent[]
+  auditLogs                      AuditLog[]                 @relation("AuditActor")
+  reviewedTestingApplications    TestingApplication[]       @relation("TestingApplicationReviewer")
+  approvedTestingApplications    TestingApplication[]       @relation("TestingApplicationApprover")
+  notifications                  Notification[]
+  sampleReviews                  SampleReview[]
+  assignedTestingWorkOrders      TestingWorkOrder[]         @relation("TestingWorkOrderAnalyst")
+  assignedWorkOrdersByUser       TestingWorkOrder[]         @relation("TestingWorkOrderAssigner")
+  uploadedWorkOrderDocuments     TestingWorkOrderDocument[]
+  reviewedTestingWorkOrders      TestingWorkOrder[]         @relation("TestingWorkOrderReviewer")
+  preparedLaboratoryReports      LaboratoryTestReport[]     @relation("LaboratoryTestReportPreparer")
+  approvedLaboratoryReports      LaboratoryTestReport[]     @relation("LaboratoryTestReportApprover")
+  uploadedFinalLaboratoryReports LaboratoryTestReport[]     @relation("LaboratoryTestReportFinalUploader")
+  verifiedProducts               Product[]                  @relation("ProductVerifier")
 
   @@index([status, deletedAt])
   @@index([type, status])
@@ -552,6 +595,10 @@ model Business {
   members        BusinessMember[]
   legalDocuments BusinessLegalDocument[]
   commodities    BusinessCommodity[]
+  products       Product[]
+  businessNeeds  BusinessNeed[]
+  businessOffers BusinessOffer[]
+  productOffers  ProductOffer[]
   auditLogs      AuditLog[]
 
   @@index([name])
@@ -841,10 +888,10 @@ model LaboratoryTestReport {
   updatedAt            DateTime                   @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt            DateTime?                  @map("deleted_at") @db.Timestamptz(3)
 
-  application TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  preparedBy  User               @relation("LaboratoryTestReportPreparer", fields: [preparedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  approvedBy  User?              @relation("LaboratoryTestReportApprover", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  finalUploadedBy User?           @relation("LaboratoryTestReportFinalUploader", fields: [finalUploadedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  application     TestingApplication @relation(fields: [testingApplicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  preparedBy      User               @relation("LaboratoryTestReportPreparer", fields: [preparedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  approvedBy      User?              @relation("LaboratoryTestReportApprover", fields: [approvedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  finalUploadedBy User?              @relation("LaboratoryTestReportFinalUploader", fields: [finalUploadedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
 
   @@index([status, submittedAt])
   @@index([preparedById])
@@ -1067,10 +1114,213 @@ model Commodity {
   updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
 
-  businesses BusinessCommodity[]
+  businesses    BusinessCommodity[]
+  products      Product[]
+  businessNeeds BusinessNeed[]
 
   @@index([isActive, deletedAt])
   @@map("commodities")
+}
+
+model ProductCategory {
+  id          BigInt    @id @default(autoincrement())
+  parentId    BigInt?   @map("parent_id")
+  code        String    @unique @db.VarChar(40)
+  name        String    @db.VarChar(120)
+  description String?   @db.VarChar(500)
+  sortOrder   Int       @default(0) @map("sort_order")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  parent        ProductCategory?  @relation("ProductCategoryHierarchy", fields: [parentId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  children      ProductCategory[] @relation("ProductCategoryHierarchy")
+  products      Product[]
+  businessNeeds BusinessNeed[]
+
+  @@unique([parentId, name])
+  @@index([parentId, sortOrder])
+  @@index([isActive, deletedAt])
+  @@map("product_categories")
+}
+
+model Unit {
+  id          BigInt    @id @default(autoincrement())
+  code        String    @unique @db.VarChar(30)
+  name        String    @unique @db.VarChar(100)
+  symbol      String    @db.VarChar(20)
+  description String?   @db.VarChar(500)
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  products      Product[]
+  businessNeeds BusinessNeed[]
+
+  @@index([isActive, deletedAt])
+  @@map("units")
+}
+
+model Product {
+  id                       BigInt                    @id @default(autoincrement())
+  businessId               BigInt                    @map("business_id")
+  commodityId              BigInt                    @map("commodity_id")
+  categoryId               BigInt                    @map("category_id")
+  unitId                   BigInt                    @map("unit_id")
+  sku                      String?                   @db.VarChar(80)
+  name                     String                    @db.VarChar(160)
+  brandName                String?                   @map("brand_name") @db.VarChar(160)
+  shortDescription         String?                   @map("short_description") @db.VarChar(300)
+  description              String?                   @db.Text
+  specifications           Json?
+  packaging                String?                   @db.VarChar(300)
+  storageInstructions      String?                   @map("storage_instructions") @db.VarChar(500)
+  shelfLifeDays            Int?                      @map("shelf_life_days")
+  minimumPrice             Decimal?                  @map("minimum_price") @db.Decimal(18, 2)
+  maximumPrice             Decimal?                  @map("maximum_price") @db.Decimal(18, 2)
+  currency                 String                    @default("IDR") @db.Char(3)
+  isPriceNegotiable        Boolean                   @default(false) @map("is_price_negotiable")
+  isPriceVisible           Boolean                   @default(true) @map("is_price_visible")
+  stockQuantity            Decimal?                  @map("stock_quantity") @db.Decimal(18, 2)
+  minimumOrderQuantity     Decimal?                  @map("minimum_order_quantity") @db.Decimal(18, 2)
+  productionCapacity       Decimal?                  @map("production_capacity") @db.Decimal(18, 2)
+  productionCapacityPeriod ProductionCapacityPeriod? @map("production_capacity_period")
+  availability             ProductAvailability       @default(READY_STOCK)
+  marketScope              ProductMarketScope        @default(LOCAL) @map("market_scope")
+  status                   ProductStatus             @default(DRAFT)
+  isPublished              Boolean                   @default(false) @map("is_published")
+  submittedAt              DateTime?                 @map("submitted_at") @db.Timestamptz(3)
+  verifiedById             BigInt?                   @map("verified_by_id")
+  verifiedAt               DateTime?                 @map("verified_at") @db.Timestamptz(3)
+  verificationNotes        String?                   @map("verification_notes") @db.VarChar(1000)
+  createdAt                DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime                  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                DateTime?                 @map("deleted_at") @db.Timestamptz(3)
+
+  business   Business        @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  commodity  Commodity       @relation(fields: [commodityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category   ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  unit       Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  verifiedBy User?           @relation("ProductVerifier", fields: [verifiedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  images     ProductImage[]
+  offers     ProductOffer[]
+
+  @@unique([businessId, sku])
+  @@index([businessId, status, deletedAt])
+  @@index([commodityId, isPublished, status, deletedAt])
+  @@index([categoryId, isPublished, status, deletedAt])
+  @@index([unitId])
+  @@index([verifiedById])
+  @@map("products")
+}
+
+model ProductImage {
+  id           BigInt    @id @default(autoincrement())
+  productId    BigInt    @map("product_id")
+  storageKey   String    @map("storage_key") @db.VarChar(500)
+  originalName String    @map("original_name") @db.VarChar(255)
+  mimeType     String    @map("mime_type") @db.VarChar(100)
+  sizeBytes    BigInt    @map("size_bytes")
+  altText      String?   @map("alt_text") @db.VarChar(200)
+  isPrimary    Boolean   @default(false) @map("is_primary")
+  sortOrder    Int       @default(0) @map("sort_order")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([productId, isPrimary, sortOrder, deletedAt])
+  @@map("product_images")
+}
+
+model BusinessNeed {
+  id                 BigInt             @id @default(autoincrement())
+  businessId         BigInt             @map("business_id")
+  commodityId        BigInt             @map("commodity_id")
+  categoryId         BigInt             @map("category_id")
+  unitId             BigInt             @map("unit_id")
+  title              String             @db.VarChar(180)
+  description        String             @db.Text
+  specifications     String?            @db.Text
+  quantity           Decimal            @db.Decimal(18, 2)
+  minimumBudget      Decimal?           @map("minimum_budget") @db.Decimal(18, 2)
+  maximumBudget      Decimal?           @map("maximum_budget") @db.Decimal(18, 2)
+  isBudgetNegotiable Boolean            @default(false) @map("is_budget_negotiable")
+  deliveryLocation   String             @map("delivery_location") @db.VarChar(300)
+  requiredAt         DateTime?          @map("required_at") @db.Date
+  status             BusinessNeedStatus @default(DRAFT)
+  publishedAt        DateTime?          @map("published_at") @db.Timestamptz(3)
+  closedAt           DateTime?          @map("closed_at") @db.Timestamptz(3)
+  createdAt          DateTime           @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime           @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?          @map("deleted_at") @db.Timestamptz(3)
+
+  business  Business        @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  commodity Commodity       @relation(fields: [commodityId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  category  ProductCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  unit      Unit            @relation(fields: [unitId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  offers    BusinessOffer[]
+
+  @@index([businessId, status, deletedAt])
+  @@index([commodityId, status, requiredAt, deletedAt])
+  @@index([categoryId, status, deletedAt])
+  @@index([unitId])
+  @@map("business_needs")
+}
+
+model BusinessOffer {
+  id                 BigInt              @id @default(autoincrement())
+  businessNeedId     BigInt              @map("business_need_id")
+  supplierBusinessId BigInt              @map("supplier_business_id")
+  quantity           Decimal             @db.Decimal(18, 2)
+  unitPrice          Decimal             @map("unit_price") @db.Decimal(18, 2)
+  leadTimeDays       Int                 @map("lead_time_days")
+  validUntil         DateTime            @map("valid_until") @db.Date
+  message            String              @db.Text
+  status             BusinessOfferStatus @default(SUBMITTED)
+  submittedAt        DateTime            @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  respondedAt        DateTime?           @map("responded_at") @db.Timestamptz(3)
+  responseNotes      String?             @map("response_notes") @db.Text
+  createdAt          DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt          DateTime?           @map("deleted_at") @db.Timestamptz(3)
+
+  businessNeed     BusinessNeed @relation(fields: [businessNeedId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  supplierBusiness Business     @relation(fields: [supplierBusinessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([businessNeedId, supplierBusinessId])
+  @@index([supplierBusinessId, status, deletedAt])
+  @@index([businessNeedId, status, deletedAt])
+  @@map("business_offers")
+}
+
+model ProductOffer {
+  id              BigInt              @id @default(autoincrement())
+  productId       BigInt              @map("product_id")
+  buyerBusinessId BigInt              @map("buyer_business_id")
+  quantity        Decimal             @db.Decimal(18, 2)
+  unitPrice       Decimal             @map("unit_price") @db.Decimal(18, 2)
+  deliveryAddress String              @map("delivery_address") @db.VarChar(500)
+  validUntil      DateTime            @map("valid_until") @db.Date
+  message         String              @db.Text
+  status          BusinessOfferStatus @default(SUBMITTED)
+  submittedAt     DateTime            @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  respondedAt     DateTime?           @map("responded_at") @db.Timestamptz(3)
+  responseNotes   String?             @map("response_notes") @db.Text
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime            @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt       DateTime?           @map("deleted_at") @db.Timestamptz(3)
+
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  buyerBusiness Business @relation(fields: [buyerBusinessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([productId, buyerBusinessId])
+  @@index([buyerBusinessId, status, deletedAt])
+  @@index([productId, status, deletedAt])
+  @@map("product_offers")
 }
 
 model BusinessCommodity {

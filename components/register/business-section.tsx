@@ -1,9 +1,11 @@
 import { Building2 } from "lucide-react";
 import type { FieldErrors, UseFormRegister, UseFormWatch } from "react-hook-form";
+import type { RegistrationCommodityOption } from "@/features/auth/registration.types";
 import { FloatingInput, FloatingSelect } from "./form-field";
-import { businessTypes, commodities, lampungRegions, type RegistrationFormValues } from "./registration-schema";
+import { businessTypes, lampungRegions, type RegistrationFormValues } from "./registration-schema";
 
 interface BusinessSectionProps {
+  readonly commodities: readonly RegistrationCommodityOption[];
   readonly errors: FieldErrors<RegistrationFormValues>;
   readonly register: UseFormRegister<RegistrationFormValues>;
   readonly watch: UseFormWatch<RegistrationFormValues>;
@@ -11,9 +13,10 @@ interface BusinessSectionProps {
 
 const toOptions = (values: readonly string[]) => values.map((value) => ({ label: value, value }));
 
-export function BusinessSection({ errors, register, watch }: BusinessSectionProps) {
+export function BusinessSection({ commodities, errors, register, watch }: BusinessSectionProps) {
   const businessType = watch("businessType");
   const commodity = watch("commodity");
+  const selectedCommodity = commodities.find(({ id }) => id === commodity);
 
   return (
     <fieldset>
@@ -24,11 +27,11 @@ export function BusinessSection({ errors, register, watch }: BusinessSectionProp
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="sm:col-span-2"><FloatingInput label="Nama Usaha" autoComplete="organization" error={errors.businessName} registration={register("businessName")} /></div>
         <FloatingSelect label="Jenis Usaha" error={errors.businessType} options={toOptions(businessTypes)} registration={register("businessType")} defaultValue="" />
-        <FloatingSelect label="Komoditas Utama" error={errors.commodity} options={toOptions(commodities)} registration={register("commodity")} defaultValue="" />
+        <FloatingSelect label="Komoditas Utama" error={errors.commodity} options={commodities.map(({ id, name }) => ({ label: name, value: id }))} registration={register("commodity")} defaultValue="" />
         {businessType === "Lainnya" && (
           <FloatingInput label="Jenis Usaha Lainnya" error={errors.businessTypeOther} registration={register("businessTypeOther")} />
         )}
-        {commodity === "Lainnya" && (
+        {selectedCommodity?.isOther && (
           <FloatingInput label="Komoditas Lainnya" error={errors.commodityOther} registration={register("commodityOther")} />
         )}
         <FloatingSelect label="Kabupaten/Kota" error={errors.region} options={toOptions(lampungRegions)} registration={register("region")} defaultValue="" />

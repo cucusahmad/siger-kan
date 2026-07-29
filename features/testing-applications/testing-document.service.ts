@@ -27,11 +27,11 @@ export async function deleteApplicationDocument(userId: string, applicationId: s
   await prisma.$transaction(async (transaction) => { await transaction.applicationDocument.update({ where: { id: document.id }, data: { deletedAt: new Date() } }); await transaction.auditLog.create({ data: { actorUserId: BigInt(userId), businessId: membership.businessId, action: AuditAction.DELETE, entityType: "APPLICATION_DOCUMENT", entityId: document.id.toString(), ipAddress: context.ipAddress, userAgent: context.userAgent } }); }); await unlink(target(document.filePath)).catch(() => undefined);
 }
 
-export async function serveApplicationDocumentForReception(applicationId: string, documentId: string): Promise<Response> {
+export async function serveApplicationDocumentForReception(applicationId: string, documentId: string, includeAllStatuses = false): Promise<Response> {
   const document = await prisma.applicationDocument.findFirst({
     where: {
       id: BigInt(documentId), testingApplicationId: BigInt(applicationId), deletedAt: null,
-      application: { deletedAt: null, status: { in: ["DIAJUKAN", "PERLU_PERBAIKAN", "DISETUJUI"] } },
+      application: { deletedAt: null, ...(includeAllStatuses ? {} : { status: { in: ["DIAJUKAN", "PERLU_PERBAIKAN", "DISETUJUI"] } }) },
     },
     select: { fileName: true, filePath: true, mimeType: true },
   });

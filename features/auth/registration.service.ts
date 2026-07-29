@@ -17,6 +17,7 @@ import { prisma } from "@/lib/prisma";
 import { createEmailVerificationToken } from "@/lib/token";
 
 import type {
+  RegistrationCommodityOption,
   RegistrationInput,
   RegistrationRequestContext,
   RegistrationResult,
@@ -28,6 +29,20 @@ import {
 } from "./registration.types";
 
 const BUSINESS_CODE_RANDOM_BYTES = 6;
+
+export async function getRegistrationCommodities(): Promise<readonly RegistrationCommodityOption[]> {
+  const commodities = await prisma.commodity.findMany({
+    where: { isActive: true, deletedAt: null },
+    orderBy: { name: "asc" },
+    select: { id: true, name: true, isOther: true },
+  });
+
+  return commodities.map(({ id, name, isOther }) => ({
+    id: id.toString(),
+    name,
+    isOther,
+  }));
+}
 
 function createBusinessCode(): string {
   const date = new Date().toISOString().slice(0, 10).replaceAll("-", "");

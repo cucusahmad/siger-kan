@@ -10,17 +10,6 @@ export const businessTypes = [
   "Lainnya",
 ] as const;
 
-export const commodities = [
-  "Udang",
-  "Tuna",
-  "Cakalang",
-  "Bandeng",
-  "Rumput Laut",
-  "Kepiting",
-  "Lobster",
-  "Lainnya",
-] as const;
-
 export const lampungRegions = [
   "Kota Bandar Lampung",
   "Kota Metro",
@@ -57,7 +46,7 @@ export const registrationSchema = z
     businessName: z.string().trim().min(3, "Nama usaha minimal 3 karakter."),
     businessType: z.enum(businessTypes, { message: "Pilih jenis usaha." }),
     businessTypeOther: z.string().trim().max(200, "Penjelasan maksimal 200 karakter.").optional(),
-    commodity: z.enum(commodities, { message: "Pilih komoditas utama." }),
+    commodity: z.string().regex(/^\d+$/, "Pilih komoditas utama."),
     commodityOther: z.string().trim().max(200, "Penjelasan maksimal 200 karakter.").optional(),
     region: z.enum(lampungRegions, { message: "Pilih kabupaten atau kota." }),
     province: z.literal("Lampung"),
@@ -72,10 +61,6 @@ export const registrationSchema = z
   .refine((data) => data.businessType !== "Lainnya" || Boolean(data.businessTypeOther), {
     message: "Jelaskan jenis usaha lainnya.",
     path: ["businessTypeOther"],
-  })
-  .refine((data) => data.commodity !== "Lainnya" || Boolean(data.commodityOther), {
-    message: "Jelaskan komoditas lainnya.",
-    path: ["commodityOther"],
   });
 
 export type RegistrationFormValues = z.infer<typeof registrationSchema>;

@@ -22,6 +22,110 @@ function validatePdf(file: File, bytes: Uint8Array): void {
   if (!file.size || file.size > maxFileSize || file.type !== "application/pdf" || !signature.every((value, index) => bytes[index] === value)) throw new Error("INVALID_FINAL_REPORT_FILE");
 }
 
+const businessFinalReportWhere = (userId: string) => ({
+  status: "DITERBITKAN" as const,
+  deletedAt: null,
+  finalFileName: { not: null },
+  finalFilePath: { not: null },
+  application: {
+    deletedAt: null,
+    businessProfile: {
+      business: {
+        deletedAt: null,
+        members: { some: { userId: BigInt(userId), status: "ACTIVE" as const, deletedAt: null } },
+      },
+    },
+  },
+});
+
+export async function listBusinessFinalLaboratoryReports(userId: string) {
+  const reports = await prisma.laboratoryTestReport.findMany({
+    where: businessFinalReportWhere(userId),
+    orderBy: [{ publishedAt: "desc" }, { id: "desc" }],
+    select: {
+      id: true,
+      reportNumber: true,
+      reportDate: true,
+      finalFileName: true,
+      publishedAt: true,
+      application: {
+        select: {
+          applicationNumber: true,
+          purpose: true,
+          otherPurpose: true,
+          laboratory: { select: { name: true } },
+          product: { select: { productName: true } },
+        },
+      },
+    },
+  });
+
+  return reports.map((report) => ({
+    ...report,
+    id: report.id.toString(),
+    reportDate: report.reportDate.toISOString(),
+    publishedAt: report.publishedAt?.toISOString() ?? null,
+  }));
+}
+
+export async function getBusinessFinalLaboratoryReport(userId: string, reportId: string) {
+  const report = await prisma.laboratoryTestReport.findFirst({
+    where: { ...businessFinalReportWhere(userId), id: BigInt(reportId) },
+    select: {
+      id: true,
+      reportNumber: true,
+      reportDate: true,
+      conclusion: true,
+      notes: true,
+      finalFileName: true,
+      finalFileSize: true,
+      publishedAt: true,
+      approvedAt: true,
+      application: {
+        select: {
+          applicationNumber: true,
+          purpose: true,
+          otherPurpose: true,
+          submittedAt: true,
+          laboratory: { select: { name: true } },
+          product: { select: { productName: true, productType: true, productForm: true } },
+          samples: { select: { id: true, sampleName: true, quantity: true, weight: true, weightUnit: true } },
+          parameters: {
+            select: {
+              id: true,
+              parameter: { select: { name: true, method: true } },
+              sample: { select: { sampleName: true } },
+            },
+          },
+        },
+      },
+    },
+  });
+  if (!report) throw new Error("NOT_FOUND");
+
+  return {
+    ...report,
+    id: report.id.toString(),
+    reportDate: report.reportDate.toISOString(),
+    publishedAt: report.publishedAt?.toISOString() ?? null,
+    approvedAt: report.approvedAt?.toISOString() ?? null,
+    finalFileSize: report.finalFileSize?.toString() ?? null,
+    application: {
+      ...report.application,
+      submittedAt: report.application.submittedAt?.toISOString() ?? null,
+      samples: report.application.samples.map((sample) => ({
+        ...sample,
+        id: sample.id.toString(),
+        weight: sample.weight?.toString() ?? null,
+      })),
+      parameters: report.application.parameters.map((parameter) => ({
+        ...parameter,
+        id: parameter.id.toString(),
+      })),
+    },
+  };
+}
+
 export async function publishFinalLaboratoryReport(userId: string, reportId: string, form: FormData, context: RequestContext) {
   const file = form.get("file");
   if (!(file instanceof File)) throw new Error("INVALID_FINAL_REPORT_FILE");
@@ -53,9 +157,9 @@ export async function publishFinalLaboratoryReport(userId: string, reportId: str
   }
 }
 
-export async function downloadFinalLaboratoryReport(userId: string, reportId: string): Promise<Response> {
+export async function downloadFinalLaboratoryReport(userId: string, reportId: string, canViewAll = false): Promise<Response> {
   const report = await prisma.laboratoryTestReport.findFirst({
-    where: { id: BigInt(reportId), status: "DITERBITKAN", deletedAt: null, OR: [{ preparedById: BigInt(userId) }, { approvedById: BigInt(userId) }, { finalUploadedById: BigInt(userId) }, { application: { businessProfile: { business: { members: { some: { userId: BigInt(userId), status: "ACTIVE", deletedAt: null } } } } } }] },
+    where: { id: BigInt(reportId), status: "DITERBITKAN", deletedAt: null, ...(canViewAll ? {} : { OR: [{ preparedById: BigInt(userId) }, { approvedById: BigInt(userId) }, { finalUploadedById: BigInt(userId) }, { application: { businessProfile: { business: { members: { some: { userId: BigInt(userId), status: "ACTIVE", deletedAt: null } } } } } }] }) },
     select: { finalFileName: true, finalFilePath: true, finalMimeType: true },
   });
   if (!report?.finalFilePath || !report.finalFileName) throw new Error("NOT_FOUND");

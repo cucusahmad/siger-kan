@@ -3,13 +3,16 @@ import Image from "next/image";
 import Link from "next/link";
 import { RegistrationIllustration } from "@/components/register/illustration";
 import { RegistrationCard } from "@/components/register/registration-card";
+import { getRegistrationCommodities } from "@/features/auth/registration.service";
 
 export const metadata: Metadata = {
   title: "Daftar Pelaku Usaha | SIGER-KAN",
   description: "Daftarkan usaha perikanan Anda untuk mengakses ekosistem layanan mutu SIGER-KAN.",
 };
 
-export default function RegisterPage() {
+export default async function RegisterPage() {
+  const commodities = await getRegistrationCommodities();
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#f5f9f8] lg:grid lg:grid-cols-[minmax(420px,.82fr)_minmax(620px,1.18fr)]">
       <section className="relative hidden min-h-screen overflow-hidden bg-navy px-8 py-10 text-white lg:flex lg:flex-col lg:justify-between xl:px-14">
@@ -35,7 +38,7 @@ export default function RegisterPage() {
         <div className="relative w-full max-w-[720px]">
           <Link href="/" className="mb-5 flex w-fit items-center gap-2.5 lg:hidden" aria-label="Kembali ke beranda SIGER-KAN"><Image src="/siger-kan-mark.svg" alt="" width={38} height={38} priority /><strong className="text-base text-navy">SIGER-KAN</strong></Link>
           <div className="overflow-hidden rounded-[1.75rem] border border-white bg-white shadow-[0_28px_80px_rgba(7,59,76,.11)] sm:rounded-[2.25rem]">
-            <RegistrationCard />
+            <RegistrationCard commodities={commodities} />
           </div>
           <p className="mt-5 text-center text-[11px] text-muted">Data Anda dilindungi dan hanya digunakan untuk kebutuhan layanan SIGER-KAN.</p>
         </div>

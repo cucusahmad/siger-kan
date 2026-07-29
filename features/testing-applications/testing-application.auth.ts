@@ -37,6 +37,14 @@ export async function requireReportApprover() {
   return user;
 }
 
+export async function requireTestingReportViewer() {
+  const user = await getCurrentUser();
+  if (!user) throw new Error("UNAUTHENTICATED");
+  const allowedRole = user.roleCodes.some((role) => role === "KEPALA_UPTD" || role === "KEPALA_DINAS");
+  if (!allowedRole || !user.permissions.includes("report.read")) throw new Error("FORBIDDEN");
+  return user;
+}
+
 async function requireLaboratoryRole(role: "PENYELIA_LAB" | "ANALIS_LAB", permission: string) { const user = await getCurrentUser(); if (!user) throw new Error("UNAUTHENTICATED"); if (!user.roleCodes.includes(role) || !user.permissions.includes(permission)) throw new Error("FORBIDDEN"); return user; }
 export async function requireLaboratorySupervisor() { return requireLaboratoryRole("PENYELIA_LAB", "laboratory.result.review"); }
 export async function requireLaboratoryAnalyst() { return requireLaboratoryRole("ANALIS_LAB", "laboratory.sample.test"); }

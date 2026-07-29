@@ -1,2 +1,23 @@
-import { DashboardPlaceholderPage } from "@/components/dashboard/dashboard-placeholder-page";
-export default function BusinessMatchingPage() { return <DashboardPlaceholderPage title="Business Matching" description="Temukan peluang kemitraan dan pengembangan pasar usaha perikanan." />; }
+import type { Metadata } from "next";
+import Link from "next/link";
+import { Building2 } from "lucide-react";
+import { redirect } from "next/navigation";
+
+import { BusinessNeedsPage } from "@/components/dashboard/business-matching/BusinessNeedsPage";
+import { getBusinessNeedPageData } from "@/features/business-needs/business-need.service";
+import { getCurrentUser } from "@/lib/business/get-current-business";
+
+export const metadata: Metadata = { title: "Business Matching" };
+
+export default async function BusinessMatchingPage() {
+  const user = await getCurrentUser();
+  if (!user) redirect("/login");
+  if (!user.permissions.includes("business.read")) return <section className="rounded-3xl border border-[#E63946]/20 bg-white p-8 text-center"><h1 className="text-xl font-bold text-navy">Akses tidak tersedia</h1><p className="mt-2 text-sm text-muted">Akun Anda tidak memiliki izin untuk melihat kebutuhan usaha.</p></section>;
+  let data: Awaited<ReturnType<typeof getBusinessNeedPageData>>;
+  try {
+    data = await getBusinessNeedPageData(user.id, user.permissions.includes("business.update"));
+  } catch {
+    return <section className="flex min-h-80 flex-col items-center justify-center rounded-3xl border border-dashed border-ocean/25 bg-white p-8 text-center"><span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-seafoam text-ocean"><Building2 className="h-7 w-7" /></span><h1 className="mt-5 text-xl font-bold text-navy">Belum ada usaha terhubung</h1><p className="mt-2 max-w-md text-sm leading-6 text-muted">Hubungkan akun dengan Pelaku Usaha aktif sebelum membuat kebutuhan pembelian.</p><Link href="/dashboard" className="mt-5 rounded-xl bg-navy px-5 py-3 text-sm font-bold text-white">Kembali ke Dashboard</Link></section>;
+  }
+  return <BusinessNeedsPage initialData={data} />;
+}
