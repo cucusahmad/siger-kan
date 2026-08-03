@@ -1,13 +1,14 @@
 import { redirect } from "next/navigation";
-import { QualityClinicWorkspace } from "@/components/dashboard/quality-clinic/QualityClinicWorkspace";
-import { getClinicAppointments } from "@/features/quality-clinic/quality-clinic.service";
+
+import { ECoachingWorkspace } from "@/components/dashboard/e-coaching/ECoachingWorkspace";
+import { getConsultations } from "@/features/e-coaching/e-coaching.service";
 import { getCurrentUser } from "@/lib/business/get-current-business";
 
-export default async function QualityClinicPage() {
+export default async function ECoachingConsultationsPage() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
   const hasAccess = user.roleCodes.some((role) => role === "PELAKU_USAHA" || role === "KONSULTAN_MUTU");
   if (!hasAccess) redirect("/dashboard");
 
-  return <QualityClinicWorkspace initialData={await getClinicAppointments(user)} />;
+  return <ECoachingWorkspace initialData={await getConsultations(user)} />;
 }

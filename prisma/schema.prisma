@@ -269,6 +269,64 @@ enum AuditAction {
   SESSION_REVOKE
 }
 
+enum ConsultationCategory {
+  CERTIFICATION
+  TEST_RESULT
+  QUALITY_CLINIC
+  BUSINESS_DEVELOPMENT
+  OTHER
+}
+
+enum ConsultationStatus {
+  WAITING
+  IN_PROGRESS
+  ANSWERED
+  CLOSED
+}
+
+enum QualityClinicAppointmentStatus {
+  PENDING
+  CONFIRMED
+  COMPLETED
+  REJECTED
+  CANCELLED
+}
+
+enum CertificationApplicationType {
+  INITIAL
+  RECERTIFICATION
+  SCOPE_EXTENSION
+}
+
+enum CertificationApplicationStatus {
+  DRAFT
+  SUBMITTED
+  REVISION_REQUIRED
+  RESUBMITTED
+  VERIFIED
+  INVOICED
+  PAYMENT_SUBMITTED
+  PAYMENT_VERIFIED
+  AUDIT_SCHEDULED
+  SCHEDULE_CONFIRMED
+  AUDIT_COMPLETED
+  CORRECTIVE_ACTION_REQUIRED
+  CORRECTIVE_ACTION_SUBMITTED
+  CORRECTIVE_ACTION_VERIFIED
+}
+
+enum CertificationDocumentType {
+  APPLICATION_LETTER
+  BUSINESS_LICENSE
+  PRODUCT_SPECIFICATION
+  QUALITY_DOCUMENT
+  PRODUCTION_PROCESS
+  OTHER
+  PAYMENT_PROOF
+  AUDIT_REPORT
+  CORRECTIVE_ACTION_PROOF
+}
+
 model User {
   id                  BigInt     @id @default(autoincrement())
   email               String     @db.VarChar(320)
@@ -287,30 +345,40 @@ model User {
   updatedAt           DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt           DateTime?  @map("deleted_at") @db.Timestamptz(3)
 
-  profile                        UserProfile?
-  roles                          UserRole[]                 @relation("UserRoles")
-  roleAssignmentsMade            UserRole[]                 @relation("UserRoleAssigner")
-  sessions                       UserSession[]
-  emailVerificationTokens        EmailVerificationToken[]
-  passwordResetTokens            PasswordResetToken[]
-  businessMemberships            BusinessMember[]           @relation("BusinessMembers")
-  businessInvitationsMade        BusinessMember[]           @relation("BusinessMemberInviter")
-  uploadedDocuments              BusinessLegalDocument[]    @relation("DocumentUploader")
-  verifiedDocuments              BusinessLegalDocument[]    @relation("DocumentVerifier")
-  consents                       UserConsent[]
-  auditLogs                      AuditLog[]                 @relation("AuditActor")
-  reviewedTestingApplications    TestingApplication[]       @relation("TestingApplicationReviewer")
-  approvedTestingApplications    TestingApplication[]       @relation("TestingApplicationApprover")
-  notifications                  Notification[]
-  sampleReviews                  SampleReview[]
-  assignedTestingWorkOrders      TestingWorkOrder[]         @relation("TestingWorkOrderAnalyst")
-  assignedWorkOrdersByUser       TestingWorkOrder[]         @relation("TestingWorkOrderAssigner")
-  uploadedWorkOrderDocuments     TestingWorkOrderDocument[]
-  reviewedTestingWorkOrders      TestingWorkOrder[]         @relation("TestingWorkOrderReviewer")
-  preparedLaboratoryReports      LaboratoryTestReport[]     @relation("LaboratoryTestReportPreparer")
-  approvedLaboratoryReports      LaboratoryTestReport[]     @relation("LaboratoryTestReportApprover")
-  uploadedFinalLaboratoryReports LaboratoryTestReport[]     @relation("LaboratoryTestReportFinalUploader")
-  verifiedProducts               Product[]                  @relation("ProductVerifier")
+  profile                           UserProfile?
+  roles                             UserRole[]                         @relation("UserRoles")
+  roleAssignmentsMade               UserRole[]                         @relation("UserRoleAssigner")
+  sessions                          UserSession[]
+  emailVerificationTokens           EmailVerificationToken[]
+  passwordResetTokens               PasswordResetToken[]
+  businessMemberships               BusinessMember[]                   @relation("BusinessMembers")
+  businessInvitationsMade           BusinessMember[]                   @relation("BusinessMemberInviter")
+  uploadedDocuments                 BusinessLegalDocument[]            @relation("DocumentUploader")
+  verifiedDocuments                 BusinessLegalDocument[]            @relation("DocumentVerifier")
+  consents                          UserConsent[]
+  auditLogs                         AuditLog[]                         @relation("AuditActor")
+  reviewedTestingApplications       TestingApplication[]               @relation("TestingApplicationReviewer")
+  approvedTestingApplications       TestingApplication[]               @relation("TestingApplicationApprover")
+  notifications                     Notification[]
+  sampleReviews                     SampleReview[]
+  assignedTestingWorkOrders         TestingWorkOrder[]                 @relation("TestingWorkOrderAnalyst")
+  assignedWorkOrdersByUser          TestingWorkOrder[]                 @relation("TestingWorkOrderAssigner")
+  uploadedWorkOrderDocuments        TestingWorkOrderDocument[]
+  reviewedTestingWorkOrders         TestingWorkOrder[]                 @relation("TestingWorkOrderReviewer")
+  preparedLaboratoryReports         LaboratoryTestReport[]             @relation("LaboratoryTestReportPreparer")
+  approvedLaboratoryReports         LaboratoryTestReport[]             @relation("LaboratoryTestReportApprover")
+  uploadedFinalLaboratoryReports    LaboratoryTestReport[]             @relation("LaboratoryTestReportFinalUploader")
+  verifiedProducts                  Product[]                          @relation("ProductVerifier")
+  requestedConsultations            QualityConsultation[]              @relation("ConsultationRequester")
+  assignedConsultations             QualityConsultation[]              @relation("ConsultationConsultant")
+  consultationMessages              ConsultationMessage[]
+  consultationAttachments           ConsultationAttachment[]
+  requestedClinicAppointments       QualityClinicAppointment[]         @relation("ClinicAppointmentRequester")
+  assignedClinicAppointments        QualityClinicAppointment[]         @relation("ClinicAppointmentConsultant")
+  certificationApplications         CertificationApplication[]         @relation("CertificationApplicant")
+  reviewedCertificationApplications CertificationApplication[]         @relation("CertificationReviewer")
+  uploadedCertificationDocuments    CertificationApplicationDocument[]
+  certificationStatusHistories      CertificationApplicationHistory[]
 
   @@index([status, deletedAt])
   @@index([type, status])
@@ -591,20 +659,104 @@ model Business {
   updatedAt    DateTime       @updatedAt @map("updated_at") @db.Timestamptz(3)
   deletedAt    DateTime?      @map("deleted_at") @db.Timestamptz(3)
 
-  profile        BusinessProfile?
-  members        BusinessMember[]
-  legalDocuments BusinessLegalDocument[]
-  commodities    BusinessCommodity[]
-  products       Product[]
-  businessNeeds  BusinessNeed[]
-  businessOffers BusinessOffer[]
-  productOffers  ProductOffer[]
-  auditLogs      AuditLog[]
+  profile                   BusinessProfile?
+  members                   BusinessMember[]
+  legalDocuments            BusinessLegalDocument[]
+  commodities               BusinessCommodity[]
+  products                  Product[]
+  businessNeeds             BusinessNeed[]
+  businessOffers            BusinessOffer[]
+  productOffers             ProductOffer[]
+  auditLogs                 AuditLog[]
+  consultations             QualityConsultation[]
+  clinicAppointments        QualityClinicAppointment[]
+  certificationApplications CertificationApplication[]
 
   @@index([name])
   @@index([status, deletedAt])
   @@index([createdAt])
   @@map("businesses")
+}
+
+model CertificationApplication {
+  id                       BigInt                         @id @default(autoincrement())
+  applicationNumber        String?                        @unique @map("application_number") @db.VarChar(60)
+  businessId               BigInt                         @map("business_id")
+  applicantUserId          BigInt                         @map("applicant_user_id")
+  type                     CertificationApplicationType
+  status                   CertificationApplicationStatus @default(DRAFT)
+  applicantSnapshot        Json                           @map("applicant_snapshot")
+  contactPerson            Json?                          @map("contact_person")
+  certificateRecipient     Json?                          @map("certificate_recipient")
+  productInformation       Json?                          @map("product_information")
+  manufacturingInformation Json?                          @map("manufacturing_information")
+  requirementsAccepted     Boolean                        @default(false) @map("requirements_accepted")
+  licenseAgreementAccepted Boolean                        @default(false) @map("license_agreement_accepted")
+  submittedAt              DateTime?                      @map("submitted_at") @db.Timestamptz(3)
+  reviewedById             BigInt?                        @map("reviewed_by_id")
+  reviewedAt               DateTime?                      @map("reviewed_at") @db.Timestamptz(3)
+  reviewNotes              String?                        @map("review_notes") @db.Text
+  feeDetails               Json?                          @map("fee_details")
+  proposedEvaluators       Json?                          @map("proposed_evaluators")
+  assignedEvaluators       Json?                          @map("assigned_evaluators")
+  paymentSubmittedAt       DateTime?                      @map("payment_submitted_at") @db.Timestamptz(3)
+  paymentVerifiedAt        DateTime?                      @map("payment_verified_at") @db.Timestamptz(3)
+  auditSchedule            Json?                          @map("audit_schedule")
+  scheduleConfirmedAt      DateTime?                      @map("schedule_confirmed_at") @db.Timestamptz(3)
+  auditReport              Json?                          @map("audit_report")
+  correctiveActionNotes    String?                        @map("corrective_action_notes") @db.Text
+  correctiveActionVerifiedAt DateTime?                    @map("corrective_action_verified_at") @db.Timestamptz(3)
+  createdAt                DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                DateTime?                      @map("deleted_at") @db.Timestamptz(3)
+
+  business      Business                           @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  applicant     User                               @relation("CertificationApplicant", fields: [applicantUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewer      User?                              @relation("CertificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  documents     CertificationApplicationDocument[]
+  statusHistory CertificationApplicationHistory[]
+
+  @@index([businessId, status, deletedAt])
+  @@index([applicantUserId, createdAt])
+  @@index([reviewedById, status])
+  @@map("certification_applications")
+}
+
+model CertificationApplicationDocument {
+  id               BigInt                    @id @default(autoincrement())
+  applicationId    BigInt                    @map("application_id")
+  documentType     CertificationDocumentType @map("document_type")
+  documentName     String                    @map("document_name") @db.VarChar(200)
+  originalFileName String                    @map("original_file_name") @db.VarChar(255)
+  storageKey       String                    @map("storage_key") @db.VarChar(500)
+  mimeType         String                    @map("mime_type") @db.VarChar(120)
+  fileSize         BigInt                    @map("file_size")
+  uploadedById     BigInt                    @map("uploaded_by_id")
+  createdAt        DateTime                  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt        DateTime?                 @map("deleted_at") @db.Timestamptz(3)
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  uploadedBy  User                     @relation(fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([applicationId, deletedAt])
+  @@index([uploadedById])
+  @@map("certification_application_documents")
+}
+
+model CertificationApplicationHistory {
+  id            BigInt                         @id @default(autoincrement())
+  applicationId BigInt                         @map("application_id")
+  status        CertificationApplicationStatus
+  notes         String?                        @db.Text
+  actorUserId   BigInt                         @map("actor_user_id")
+  createdAt     DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  actor       User                     @relation(fields: [actorUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([applicationId, createdAt])
+  @@index([actorUserId])
+  @@map("certification_application_histories")
 }
 
 model BusinessProfile {
@@ -950,6 +1102,98 @@ model Notification {
 
   @@index([userId, readAt, createdAt])
   @@map("notifications")
+}
+
+model QualityConsultation {
+  id           BigInt               @id @default(autoincrement())
+  businessId   BigInt               @map("business_id")
+  requesterId  BigInt               @map("requester_id")
+  consultantId BigInt?              @map("consultant_id")
+  subject      String               @db.VarChar(180)
+  category     ConsultationCategory
+  question     String               @db.Text
+  status       ConsultationStatus   @default(WAITING)
+  answeredAt   DateTime?            @map("answered_at") @db.Timestamptz(3)
+  closedAt     DateTime?            @map("closed_at") @db.Timestamptz(3)
+  createdAt    DateTime             @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime             @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime?            @map("deleted_at") @db.Timestamptz(3)
+
+  business    Business                 @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requester   User                     @relation("ConsultationRequester", fields: [requesterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  consultant  User?                    @relation("ConsultationConsultant", fields: [consultantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  messages    ConsultationMessage[]
+  attachments ConsultationAttachment[]
+
+  @@index([businessId, status, updatedAt])
+  @@index([requesterId, updatedAt])
+  @@index([consultantId, status, updatedAt])
+  @@index([status, createdAt])
+  @@map("quality_consultations")
+}
+
+model QualityClinicAppointment {
+  id             BigInt                         @id @default(autoincrement())
+  businessId     BigInt                         @map("business_id")
+  requesterId    BigInt                         @map("requester_id")
+  consultantId   BigInt?                        @map("consultant_id")
+  topic          String                         @db.VarChar(180)
+  description    String                         @db.Text
+  preferredAt    DateTime                       @map("preferred_at") @db.Timestamptz(3)
+  scheduledAt    DateTime?                      @map("scheduled_at") @db.Timestamptz(3)
+  location       String?                        @db.VarChar(300)
+  consultantNote String?                        @map("consultant_note") @db.Text
+  status         QualityClinicAppointmentStatus @default(PENDING)
+  createdAt      DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime?                      @map("deleted_at") @db.Timestamptz(3)
+
+  business   Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  requester  User     @relation("ClinicAppointmentRequester", fields: [requesterId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  consultant User?    @relation("ClinicAppointmentConsultant", fields: [consultantId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+
+  @@index([businessId, status, preferredAt])
+  @@index([requesterId, createdAt])
+  @@index([consultantId, status, scheduledAt])
+  @@map("quality_clinic_appointments")
+}
+
+model ConsultationMessage {
+  id             BigInt   @id @default(autoincrement())
+  consultationId BigInt   @map("consultation_id")
+  senderId       BigInt   @map("sender_id")
+  message        String   @db.Text
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  consultation QualityConsultation      @relation(fields: [consultationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  sender       User                     @relation(fields: [senderId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  attachments  ConsultationAttachment[]
+
+  @@index([consultationId, createdAt])
+  @@index([senderId, createdAt])
+  @@map("consultation_messages")
+}
+
+model ConsultationAttachment {
+  id             BigInt    @id @default(autoincrement())
+  consultationId BigInt    @map("consultation_id")
+  messageId      BigInt?   @map("message_id")
+  uploadedById   BigInt    @map("uploaded_by_id")
+  fileName       String    @map("file_name") @db.VarChar(255)
+  storageKey     String    @map("storage_key") @db.VarChar(500)
+  mimeType       String    @map("mime_type") @db.VarChar(120)
+  fileSize       BigInt    @map("file_size")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  consultation QualityConsultation  @relation(fields: [consultationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  message      ConsultationMessage? @relation(fields: [messageId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  uploadedBy   User                 @relation(fields: [uploadedById], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([consultationId, createdAt])
+  @@index([messageId])
+  @@index([uploadedById])
+  @@map("consultation_attachments")
 }
 
 model TestingApplicationProduct {

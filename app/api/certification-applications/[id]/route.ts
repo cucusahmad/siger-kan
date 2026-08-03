@@ -1,0 +1,10 @@
+import { NextResponse } from "next/server";
+import { requireCertificationApplicant, requireCertificationReviewer } from "@/features/certification-applications/certification-application.auth";
+import { certificationApiError, certificationValidationError } from "@/features/certification-applications/certification-api";
+import { certificationDraftSchema } from "@/features/certification-applications/certification-application.schema";
+import { getCertificationApplication, saveCertificationDraft } from "@/features/certification-applications/certification-application.service";
+import { getRequestContext } from "@/lib/request-context";
+import { getCurrentUser } from "@/lib/business/get-current-business";
+interface Context { readonly params: Promise<{ id: string }> }
+export async function GET(_: Request, { params }: Context) { try { const id = BigInt((await params).id); const currentUser = await getCurrentUser(); if (currentUser?.roleCodes.includes("PETUGAS_SERTIFIKASI")) { await requireCertificationReviewer(); return NextResponse.json({ success: true, message: "Detail berhasil dimuat.", data: await getCertificationApplication(id) }); } const { user, businessId } = await requireCertificationApplicant(); return NextResponse.json({ success: true, message: "Detail berhasil dimuat.", data: await getCertificationApplication(id, { userId: user.id, businessId }) }); } catch (error: unknown) { return certificationApiError(error); } }
+export async function PUT(request: Request, { params }: Context) { try { const id = BigInt((await params).id); const { user, businessId } = await requireCertificationApplicant(); const parsed = certificationDraftSchema.safeParse(await request.json()); if (!parsed.success) return certificationValidationError(parsed.error.flatten().fieldErrors); await saveCertificationDraft({ userId: user.id, businessId }, parsed.data, getRequestContext(request), id); return NextResponse.json({ success: true, message: "Perubahan draft berhasil disimpan.", data: { id: id.toString() } }); } catch (error: unknown) { return certificationApiError(error); } }

@@ -59,8 +59,7 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
       { label: "Profil Usaha", href: "/dashboard/business", icon: "briefcaseBusiness", requiredPermissions: ["business.read"] },
       { label: "Legalitas Usaha", href: "/dashboard/business/legal-documents", icon: "fileBadge", requiredPermissions: ["business.document.read"] },
       { label: "Komoditas", href: "/dashboard/business/commodities", icon: "packageSearch", requiredPermissions: ["business.read"] },
-      { label: "Kelola Produk", href: "/dashboard/business/products", icon: "boxes", requiredPermissions: ["business.read"], requiresBusinessMembership: true },
-    ],
+       ],
   },
   {
     label: "Data Pelaku Usaha",
@@ -88,7 +87,7 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     icon: "badgeCheck",
     items: [
       { label: "Pengajuan Pengujian", href: "/dashboard/permohonan", icon: "fileBadge", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
-      { label: "Tracking Proses Laboratorium", href: "/dashboard/quality-testing/tracking", icon: "beaker", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
+      { label: "Monitoring Hasil Uji", href: "/dashboard/quality-testing/tracking", icon: "beaker", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
       { label: "Unduh LHU", href: "/dashboard/lhu-final", icon: "fileChart", allowedRoles: externalRoles, requiredPermissions: ["laboratory.request.read"], requiresBusinessMembership: true },
       { label: "Penerimaan Sampel", href: "/dashboard/quality-testing/sample-reception", icon: "packageSearch", requiredPermissions: ["laboratory.sample.receive"] },
       { label: "Persetujuan Kepala UPTD", href: "/dashboard/quality-testing/uptd-approval", icon: "clipboardCheck", allowedRoles: ["KEPALA_UPTD"] },
@@ -100,20 +99,23 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     ],
   },
   {
-    label: "Sertifikasi dan Pendampingan",
-    icon: "badgeCheck",
+    label: "E-Pembinaan",
+    icon: "messageSquareHeart",
+    allowedRoles: ["PELAKU_USAHA", "KONSULTAN_MUTU", "PETUGAS_SERTIFIKASI"],
     items: [
-      { label: "Sertifikasi", href: "/dashboard/certification", icon: "clipboardCheck", requiredPermissions: ["certification.read"] },
-      { label: "Klinik Mutu", href: "/dashboard/quality-clinic", icon: "messageSquareHeart", requiredPermissions: ["consultation.read"] },
-    ],
+      { label: "Klinik Mutu", href: "/dashboard/quality-clinic", icon: "messageSquareHeart", allowedRoles: ["PELAKU_USAHA", "KONSULTAN_MUTU"], requiredPermissions: ["consultation.read"] },
+      { label: "Konsultasi Daring", href: "/dashboard/e-coaching/consultations", icon: "messageSquareHeart", allowedRoles: ["PELAKU_USAHA", "KONSULTAN_MUTU"], requiredPermissions: ["consultation.read"] },
+      { label: "Permohonan Sertifikasi", href: "/dashboard/certification", icon: "clipboardCheck", allowedRoles: ["PELAKU_USAHA", "PETUGAS_SERTIFIKASI"], requiredPermissions: ["certification.read"] },
+       ],
   },
   {
     label: "Pengembangan Usaha",
     icon: "handshake",
     items: [
-      { label: "Business Matching", href: "/dashboard/business-matching", icon: "handshake", allowedRoles: externalRoles },
+      { label: "Kelola Produk", href: "/dashboard/business/products", icon: "boxes", requiredPermissions: ["business.read"], requiresBusinessMembership: true },
       { label: "Katalog Produk", href: "/dashboard/product-catalog", icon: "packageSearch", allowedRoles: externalRoles, requiredPermissions: ["business.read"], requiresBusinessMembership: true },
       { label: "Penawaran", href: "/dashboard/offers", icon: "handshake", allowedRoles: externalRoles, requiredPermissions: ["business.read"], requiresBusinessMembership: true },
+      { label: "Business Matching", href: "/dashboard/business-matching", icon: "handshake", allowedRoles: externalRoles },
       { label: "AI Knowledge Base", href: "/dashboard/knowledge-base", icon: "bookOpen", allowedRoles: externalRoles },
     ],
   },
