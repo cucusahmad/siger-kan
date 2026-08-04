@@ -8,6 +8,7 @@ interface Owner { readonly userId: string; readonly businessId: bigint }
 const applicationInclude = {
   business: { select: { name: true } }, applicant: { select: { profile: { select: { fullName: true } } } }, reviewer: { select: { profile: { select: { fullName: true } } } },
   documents: { where: { deletedAt: null }, orderBy: { createdAt: "desc" as const }, select: { id: true, documentType: true, documentName: true, originalFileName: true, mimeType: true, fileSize: true, createdAt: true } },
+  conformityStandards: { orderBy: { createdAt: "asc" as const }, select: { rujukanSni: { select: { id: true, judulStandar: true, nomorSni: true } } } },
   statusHistory: { orderBy: { createdAt: "desc" as const }, select: { id: true, status: true, notes: true, createdAt: true, actor: { select: { profile: { select: { fullName: true } } } } } },
 };
 
@@ -16,6 +17,7 @@ type ApplicationRecord = Prisma.CertificationApplicationGetPayload<{ include: ty
 function serialize(application: ApplicationRecord) {
   return { ...application, id: application.id.toString(), businessId: application.businessId.toString(), applicantUserId: application.applicantUserId.toString(), reviewedById: application.reviewedById?.toString() ?? null,
     documents: application.documents.map((item) => ({ ...item, id: item.id.toString(), fileSize: item.fileSize.toString(), createdAt: item.createdAt.toISOString() })),
+    conformityStandards: application.conformityStandards.map(({ rujukanSni }) => ({ ...rujukanSni, id: rujukanSni.id.toString() })),
     statusHistory: application.statusHistory.map((item) => ({ ...item, id: item.id.toString(), createdAt: item.createdAt.toISOString() })), createdAt: application.createdAt.toISOString(), updatedAt: application.updatedAt.toISOString(), submittedAt: application.submittedAt?.toISOString() ?? null, reviewedAt: application.reviewedAt?.toISOString() ?? null };
 }
 
@@ -38,19 +40,28 @@ export async function getCertificationApplication(id: bigint, owner?: Owner) {
 }
 
 export async function saveCertificationDraft(owner: Owner, input: CertificationDraftInput, context: RequestContext, id?: bigint) {
-  const data = { type: input.type, contactPerson: input.contactPerson, certificateRecipient: input.recipientSameAsApplicant ? Prisma.JsonNull : input.certificateRecipient ?? Prisma.JsonNull, productInformation: input.productInformation, manufacturingInformation: input.manufacturingInformation, requirementsAccepted: input.requirementsAccepted, licenseAgreementAccepted: input.licenseAgreementAccepted };
   return prisma.$transaction(async (transaction) => {
+    const standardIds = [...new Set(input.productInformation.rujukanSniIds)].map(BigInt);
+    const standards = await transaction.rujukanSni.findMany({ where: { id: { in: standardIds }, isActive: true, deletedAt: null }, select: { id: true, judulStandar: true, nomorSni: true } });
+    if (standards.length !== standardIds.length) throw new Error("INVALID_SNI_REFERENCE");
+    const pempekSelected = standards.some((standard) => standard.nomorSni === "SNI 7661:2019");
+    if (pempekSelected && input.productInformation.pempekTypes.length === 0) throw new Error("PEMPEK_TYPE_REQUIRED");
+    const productInformation = { ...input.productInformation, conformityStandard: standards.map((standard) => `${standard.judulStandar} — ${standard.nomorSni}`).join(", "), pempekTypes: pempekSelected ? input.productInformation.pempekTypes : [] };
+    const data = { type: input.type, contactPerson: input.contactPerson, certificateRecipient: input.recipientSameAsApplicant ? Prisma.JsonNull : input.certificateRecipient ?? Prisma.JsonNull, productInformation, manufacturingInformation: input.manufacturingInformation, requirementsAccepted: input.requirementsAccepted, licenseAgreementAccepted: input.licenseAgreementAccepted };
     const isNew = id === undefined;
     if (id) {
       const current = await transaction.certificationApplication.findFirst({ where: { id, businessId: owner.businessId, status: { in: [CertificationApplicationStatus.DRAFT, CertificationApplicationStatus.REVISION_REQUIRED] }, deletedAt: null }, select: { id: true } });
       if (!current) throw new Error("INVALID_STATUS");
       await transaction.certificationApplication.update({ where: { id }, data });
+      await transaction.certificationApplicationSni.deleteMany({ where: { applicationId: id } });
+      if (standardIds.length) await transaction.certificationApplicationSni.createMany({ data: standardIds.map((rujukanSniId) => ({ applicationId: id as bigint, rujukanSniId })) });
     } else {
       const applicantSnapshot = await getApplicantSnapshot(owner);
       const created = await transaction.certificationApplication.create({ data: { ...data, businessId: owner.businessId, applicantUserId: BigInt(owner.userId), applicantSnapshot } });
       id = created.id;
       await transaction.certificationApplication.update({ where: { id }, data: { applicationNumber: `CERT-${new Date().getFullYear()}-${id.toString().padStart(6, "0")}` } });
       await transaction.certificationApplicationHistory.create({ data: { applicationId: id, status: "DRAFT", actorUserId: BigInt(owner.userId) } });
+      if (standardIds.length) await transaction.certificationApplicationSni.createMany({ data: standardIds.map((rujukanSniId) => ({ applicationId: id as bigint, rujukanSniId })) });
     }
     await transaction.auditLog.create({ data: { actorUserId: BigInt(owner.userId), businessId: owner.businessId, action: isNew ? AuditAction.CREATE : AuditAction.UPDATE, entityType: "CERTIFICATION_APPLICATION", entityId: id.toString(), ipAddress: context.ipAddress, userAgent: context.userAgent } });
     return id;
@@ -59,12 +70,15 @@ export async function saveCertificationDraft(owner: Owner, input: CertificationD
 
 export async function submitCertificationApplication(owner: Owner, id: bigint, context: RequestContext) {
   return prisma.$transaction(async (transaction) => {
-    const current = await transaction.certificationApplication.findFirst({ where: { id, businessId: owner.businessId, status: { in: ["DRAFT", "REVISION_REQUIRED"] }, deletedAt: null }, select: { type: true, status: true, contactPerson: true, certificateRecipient: true, productInformation: true, manufacturingInformation: true, requirementsAccepted: true, licenseAgreementAccepted: true, _count: { select: { documents: { where: { deletedAt: null } } } } } });
+    const current = await transaction.certificationApplication.findFirst({ where: { id, businessId: owner.businessId, status: { in: ["DRAFT", "REVISION_REQUIRED"] }, deletedAt: null }, select: { type: true, status: true, contactPerson: true, certificateRecipient: true, productInformation: true, manufacturingInformation: true, requirementsAccepted: true, licenseAgreementAccepted: true, conformityStandards: { select: { rujukanSni: { select: { id: true, nomorSni: true } } } }, documents: { where: { deletedAt: null }, select: { documentType: true } } } });
     if (!current) throw new Error("INVALID_STATUS");
     if (!current.requirementsAccepted || !current.licenseAgreementAccepted) throw new Error("DECLARATION_REQUIRED");
     const complete = certificationSubmissionSchema.safeParse({ type: current.type, contactPerson: current.contactPerson, recipientSameAsApplicant: current.certificateRecipient === null, certificateRecipient: current.certificateRecipient ?? undefined, productInformation: current.productInformation, manufacturingInformation: current.manufacturingInformation, requirementsAccepted: current.requirementsAccepted, licenseAgreementAccepted: current.licenseAgreementAccepted });
     if (!complete.success) throw new Error("APPLICATION_INCOMPLETE");
-    if (!current._count.documents) throw new Error("DOCUMENT_REQUIRED");
+    const pempekSelected = current.conformityStandards.some(({ rujukanSni }) => rujukanSni.nomorSni === "SNI 7661:2019");
+    if (pempekSelected && complete.data.productInformation.pempekTypes.length === 0) throw new Error("PEMPEK_TYPE_REQUIRED");
+    const requiredDocuments = ["APPLICANT_IDENTITY", "APPLICANT_TAX_ID", "BUSINESS_LEGALITY", "QUALITY_GUIDE", "BUSINESS_CERTIFICATES", "SNI_MARK_ILLUSTRATION"];
+    if (requiredDocuments.some((type) => !current.documents.some((document) => document.documentType === type))) throw new Error("DOCUMENT_REQUIRED");
     const status = current.status === "DRAFT" ? CertificationApplicationStatus.SUBMITTED : CertificationApplicationStatus.RESUBMITTED;
     await transaction.certificationApplication.update({ where: { id }, data: { status, submittedAt: new Date(), reviewNotes: null } });
     await transaction.certificationApplicationHistory.create({ data: { applicationId: id, status, actorUserId: BigInt(owner.userId), notes: current.status === "DRAFT" ? "Permohonan diajukan." : "Perbaikan diajukan kembali." } });

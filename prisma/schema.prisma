@@ -316,6 +316,12 @@ enum CertificationApplicationStatus {
 }
 
 enum CertificationDocumentType {
+  APPLICANT_IDENTITY
+  APPLICANT_TAX_ID
+  BUSINESS_LEGALITY
+  QUALITY_GUIDE
+  BUSINESS_CERTIFICATES
+  SNI_MARK_ILLUSTRATION
   APPLICATION_LETTER
   BUSINESS_LICENSE
   PRODUCT_SPECIFICATION
@@ -715,11 +721,42 @@ model CertificationApplication {
   reviewer      User?                              @relation("CertificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
   documents     CertificationApplicationDocument[]
   statusHistory CertificationApplicationHistory[]
+  conformityStandards CertificationApplicationSni[]
 
   @@index([businessId, status, deletedAt])
   @@index([applicantUserId, createdAt])
   @@index([reviewedById, status])
   @@map("certification_applications")
+}
+
+model RujukanSni {
+  id             BigInt    @id @default(autoincrement())
+  judulStandar   String    @map("judul_standar") @db.VarChar(200)
+  nomorSni       String    @unique @map("nomor_sni") @db.VarChar(80)
+  isActive       Boolean   @default(true) @map("is_active")
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  certificationApplications CertificationApplicationSni[]
+
+  @@index([judulStandar])
+  @@index([isActive, deletedAt])
+  @@map("rujukan_sni")
+}
+
+model CertificationApplicationSni {
+  id             BigInt   @id @default(autoincrement())
+  applicationId  BigInt   @map("application_id")
+  rujukanSniId   BigInt   @map("rujukan_sni_id")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
+  rujukanSni  RujukanSni               @relation(fields: [rujukanSniId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@unique([applicationId, rujukanSniId])
+  @@index([rujukanSniId])
+  @@map("certification_application_sni")
 }
 
 model CertificationApplicationDocument {
