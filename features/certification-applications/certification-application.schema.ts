@@ -8,7 +8,7 @@ const productDraftSchema = z.object({
   productName: optionalText,
   catalogNumber: optionalText,
   uniqueIdentification: optionalText,
-  rujukanSniIds: z.array(z.string().regex(/^\d+$/)).max(50).default([]),
+  rujukanSniIds: z.array(z.string().regex(/^\d+$/)).max(1, "Hanya satu standar kesesuaian yang boleh dipilih").default([]),
   pempekTypes: z.array(z.enum(["BOILED", "FRIED", "GRILLED"])).max(3).default([]),
   existingScope: z.string().trim().max(1000).default(""),
   proposedScope: z.string().trim().max(1000).default(""),
@@ -30,7 +30,7 @@ export const certificationSubmissionSchema = certificationDraftSchema.superRefin
   if (!value.contactPerson.name || !value.contactPerson.position || !value.contactPerson.phone || !z.string().email().safeParse(value.contactPerson.email).success) context.addIssue({ code: "custom", path: ["contactPerson"], message: "Personel penghubung wajib dilengkapi" });
   if (!value.recipientSameAsApplicant && (!value.certificateRecipient?.name || !value.certificateRecipient.position || !value.certificateRecipient.phone || !z.string().email().safeParse(value.certificateRecipient.email).success)) context.addIssue({ code: "custom", path: ["certificateRecipient"], message: "Penerima sertifikat wajib dilengkapi" });
   if (!value.productInformation.productName) context.addIssue({ code: "custom", path: ["productInformation", "productName"], message: "Nama produk wajib diisi" });
-  if (!value.productInformation.rujukanSniIds.length) context.addIssue({ code: "custom", path: ["productInformation", "rujukanSniIds"], message: "Pilih minimal satu standar kesesuaian" });
+  if (!value.productInformation.rujukanSniIds.length) context.addIssue({ code: "custom", path: ["productInformation", "rujukanSniIds"], message: "Pilih satu standar kesesuaian" });
   if (new Set(value.productInformation.rujukanSniIds).size !== value.productInformation.rujukanSniIds.length) context.addIssue({ code: "custom", path: ["productInformation", "rujukanSniIds"], message: "Standar tidak boleh dipilih berulang" });
   if (value.type === "SCOPE_EXTENSION" && (!value.productInformation.existingScope || !value.productInformation.proposedScope)) context.addIssue({ code: "custom", path: ["productInformation", "proposedScope"], message: "Ruang lingkup lama dan baru wajib dijelaskan" });
   if (Object.values(value.manufacturingInformation).some((item) => !item)) context.addIssue({ code: "custom", path: ["manufacturingInformation"], message: "Informasi pembuatan produk wajib dilengkapi" });

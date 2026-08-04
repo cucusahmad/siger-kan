@@ -685,43 +685,44 @@ model Business {
 }
 
 model CertificationApplication {
-  id                       BigInt                         @id @default(autoincrement())
-  applicationNumber        String?                        @unique @map("application_number") @db.VarChar(60)
-  businessId               BigInt                         @map("business_id")
-  applicantUserId          BigInt                         @map("applicant_user_id")
-  type                     CertificationApplicationType
-  status                   CertificationApplicationStatus @default(DRAFT)
-  applicantSnapshot        Json                           @map("applicant_snapshot")
-  contactPerson            Json?                          @map("contact_person")
-  certificateRecipient     Json?                          @map("certificate_recipient")
-  productInformation       Json?                          @map("product_information")
-  manufacturingInformation Json?                          @map("manufacturing_information")
-  requirementsAccepted     Boolean                        @default(false) @map("requirements_accepted")
-  licenseAgreementAccepted Boolean                        @default(false) @map("license_agreement_accepted")
-  submittedAt              DateTime?                      @map("submitted_at") @db.Timestamptz(3)
-  reviewedById             BigInt?                        @map("reviewed_by_id")
-  reviewedAt               DateTime?                      @map("reviewed_at") @db.Timestamptz(3)
-  reviewNotes              String?                        @map("review_notes") @db.Text
-  feeDetails               Json?                          @map("fee_details")
-  proposedEvaluators       Json?                          @map("proposed_evaluators")
-  assignedEvaluators       Json?                          @map("assigned_evaluators")
-  paymentSubmittedAt       DateTime?                      @map("payment_submitted_at") @db.Timestamptz(3)
-  paymentVerifiedAt        DateTime?                      @map("payment_verified_at") @db.Timestamptz(3)
-  auditSchedule            Json?                          @map("audit_schedule")
-  scheduleConfirmedAt      DateTime?                      @map("schedule_confirmed_at") @db.Timestamptz(3)
-  auditReport              Json?                          @map("audit_report")
-  correctiveActionNotes    String?                        @map("corrective_action_notes") @db.Text
-  correctiveActionVerifiedAt DateTime?                    @map("corrective_action_verified_at") @db.Timestamptz(3)
-  createdAt                DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt                DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt                DateTime?                      @map("deleted_at") @db.Timestamptz(3)
+  id                         BigInt                         @id @default(autoincrement())
+  applicationNumber          String?                        @unique @map("application_number") @db.VarChar(60)
+  businessId                 BigInt                         @map("business_id")
+  applicantUserId            BigInt                         @map("applicant_user_id")
+  type                       CertificationApplicationType
+  status                     CertificationApplicationStatus @default(DRAFT)
+  applicantSnapshot          Json                           @map("applicant_snapshot")
+  contactPerson              Json?                          @map("contact_person")
+  certificateRecipient       Json?                          @map("certificate_recipient")
+  productInformation         Json?                          @map("product_information")
+  manufacturingInformation   Json?                          @map("manufacturing_information")
+  requirementsAccepted       Boolean                        @default(false) @map("requirements_accepted")
+  licenseAgreementAccepted   Boolean                        @default(false) @map("license_agreement_accepted")
+  submittedAt                DateTime?                      @map("submitted_at") @db.Timestamptz(3)
+  reviewedById               BigInt?                        @map("reviewed_by_id")
+  reviewedAt                 DateTime?                      @map("reviewed_at") @db.Timestamptz(3)
+  reviewNotes                String?                        @map("review_notes") @db.Text
+  feeDetails                 Json?                          @map("fee_details")
+  proposedEvaluators         Json?                          @map("proposed_evaluators")
+  assignedEvaluators         Json?                          @map("assigned_evaluators")
+  paymentSubmittedAt         DateTime?                      @map("payment_submitted_at") @db.Timestamptz(3)
+  paymentVerifiedAt          DateTime?                      @map("payment_verified_at") @db.Timestamptz(3)
+  auditSchedule              Json?                          @map("audit_schedule")
+  scheduleConfirmedAt        DateTime?                      @map("schedule_confirmed_at") @db.Timestamptz(3)
+  auditReport                Json?                          @map("audit_report")
+  correctiveActionNotes      String?                        @map("corrective_action_notes") @db.Text
+  correctiveActionVerifiedAt DateTime?                      @map("corrective_action_verified_at") @db.Timestamptz(3)
+  createdAt                  DateTime                       @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                  DateTime                       @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                  DateTime?                      @map("deleted_at") @db.Timestamptz(3)
 
-  business      Business                           @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  applicant     User                               @relation("CertificationApplicant", fields: [applicantUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
-  reviewer      User?                              @relation("CertificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
-  documents     CertificationApplicationDocument[]
-  statusHistory CertificationApplicationHistory[]
-  conformityStandards CertificationApplicationSni[]
+  business                   Business                           @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  applicant                  User                               @relation("CertificationApplicant", fields: [applicantUserId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  reviewer                   User?                              @relation("CertificationReviewer", fields: [reviewedById], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  documents                  CertificationApplicationDocument[]
+  statusHistory              CertificationApplicationHistory[]
+  conformityStandards        CertificationApplicationSni[]
+  certificationQuestionnaire CertificationQuestionnaire?
 
   @@index([businessId, status, deletedAt])
   @@index([applicantUserId, createdAt])
@@ -729,14 +730,45 @@ model CertificationApplication {
   @@map("certification_applications")
 }
 
+model CertificationQuestionnaire {
+  id                          BigInt    @id @default(autoincrement())
+  applicationId               BigInt    @unique @map("application_id")
+  applicantInformation        Json      @map("applicant_information")
+  productInformation          Json      @map("product_information")
+  productionInformation       Json      @map("production_information")
+  businessLegality            Json      @map("business_legality")
+  humanResources              Json      @map("human_resources")
+  certificationsAndProducts   Json      @map("certifications_and_products")
+  marketingChannels           Json      @map("marketing_channels")
+  qualitySystemAnswers        Json      @map("quality_system_answers")
+  sniEvaluation               Json      @map("sni_evaluation")
+  otherNotes                  String?   @map("other_notes") @db.VarChar(2000)
+  declarationAccepted         Boolean   @default(false) @map("declaration_accepted")
+  signatoryName               String?   @map("signatory_name") @db.VarChar(160)
+  signatoryPosition           String?   @map("signatory_position") @db.VarChar(160)
+  approvalDate                DateTime? @map("approval_date") @db.Date
+  signatureStorageKey         String?   @map("signature_storage_key") @db.VarChar(500)
+  stampStorageKey             String?   @map("stamp_storage_key") @db.VarChar(500)
+  electronicSignatureAccepted Boolean   @default(false) @map("electronic_signature_accepted")
+  submittedAt                 DateTime? @map("submitted_at") @db.Timestamptz(3)
+  createdAt                   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt                   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt                   DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([submittedAt, deletedAt])
+  @@map("kuisioner_sertifikasi")
+}
+
 model RujukanSni {
-  id             BigInt    @id @default(autoincrement())
-  judulStandar   String    @map("judul_standar") @db.VarChar(200)
-  nomorSni       String    @unique @map("nomor_sni") @db.VarChar(80)
-  isActive       Boolean   @default(true) @map("is_active")
-  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt      DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
-  deletedAt      DateTime? @map("deleted_at") @db.Timestamptz(3)
+  id           BigInt    @id @default(autoincrement())
+  judulStandar String    @map("judul_standar") @db.VarChar(200)
+  nomorSni     String    @unique @map("nomor_sni") @db.VarChar(80)
+  isActive     Boolean   @default(true) @map("is_active")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
 
   certificationApplications CertificationApplicationSni[]
 
@@ -746,10 +778,10 @@ model RujukanSni {
 }
 
 model CertificationApplicationSni {
-  id             BigInt   @id @default(autoincrement())
-  applicationId  BigInt   @map("application_id")
-  rujukanSniId   BigInt   @map("rujukan_sni_id")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+  id            BigInt   @id @default(autoincrement())
+  applicationId BigInt   @map("application_id")
+  rujukanSniId  BigInt   @map("rujukan_sni_id")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
 
   application CertificationApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade, onUpdate: Cascade)
   rujukanSni  RujukanSni               @relation(fields: [rujukanSniId], references: [id], onDelete: Restrict, onUpdate: Cascade)

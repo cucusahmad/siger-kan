@@ -10,6 +10,7 @@ const applicationInclude = {
   documents: { where: { deletedAt: null }, orderBy: { createdAt: "desc" as const }, select: { id: true, documentType: true, documentName: true, originalFileName: true, mimeType: true, fileSize: true, createdAt: true } },
   conformityStandards: { orderBy: { createdAt: "asc" as const }, select: { rujukanSni: { select: { id: true, judulStandar: true, nomorSni: true } } } },
   statusHistory: { orderBy: { createdAt: "desc" as const }, select: { id: true, status: true, notes: true, createdAt: true, actor: { select: { profile: { select: { fullName: true } } } } } },
+  certificationQuestionnaire: { select: { submittedAt: true, updatedAt: true } },
 };
 
 type ApplicationRecord = Prisma.CertificationApplicationGetPayload<{ include: typeof applicationInclude }>;
@@ -18,7 +19,7 @@ function serialize(application: ApplicationRecord) {
   return { ...application, id: application.id.toString(), businessId: application.businessId.toString(), applicantUserId: application.applicantUserId.toString(), reviewedById: application.reviewedById?.toString() ?? null,
     documents: application.documents.map((item) => ({ ...item, id: item.id.toString(), fileSize: item.fileSize.toString(), createdAt: item.createdAt.toISOString() })),
     conformityStandards: application.conformityStandards.map(({ rujukanSni }) => ({ ...rujukanSni, id: rujukanSni.id.toString() })),
-    statusHistory: application.statusHistory.map((item) => ({ ...item, id: item.id.toString(), createdAt: item.createdAt.toISOString() })), createdAt: application.createdAt.toISOString(), updatedAt: application.updatedAt.toISOString(), submittedAt: application.submittedAt?.toISOString() ?? null, reviewedAt: application.reviewedAt?.toISOString() ?? null };
+    statusHistory: application.statusHistory.map((item) => ({ ...item, id: item.id.toString(), createdAt: item.createdAt.toISOString() })), certificationQuestionnaire: application.certificationQuestionnaire ? { submittedAt: application.certificationQuestionnaire.submittedAt?.toISOString() ?? null, updatedAt: application.certificationQuestionnaire.updatedAt.toISOString() } : null, createdAt: application.createdAt.toISOString(), updatedAt: application.updatedAt.toISOString(), submittedAt: application.submittedAt?.toISOString() ?? null, reviewedAt: application.reviewedAt?.toISOString() ?? null };
 }
 
 export async function getApplicantSnapshot(owner: Owner) {
@@ -88,8 +89,9 @@ export async function submitCertificationApplication(owner: Owner, id: bigint, c
 
 export async function reviewCertificationApplication(userId: string, id: bigint, input: CertificationReviewInput, context: RequestContext) {
   return prisma.$transaction(async (transaction) => {
-    const current = await transaction.certificationApplication.findFirst({ where: { id, status: { in: ["SUBMITTED", "RESUBMITTED"] }, deletedAt: null }, select: { businessId: true } });
+    const current = await transaction.certificationApplication.findFirst({ where: { id, status: { in: ["SUBMITTED", "RESUBMITTED"] }, deletedAt: null }, select: { businessId: true, certificationQuestionnaire: { select: { submittedAt: true } } } });
     if (!current) throw new Error("INVALID_STATUS");
+    if (!current.certificationQuestionnaire?.submittedAt) throw new Error("QUESTIONNAIRE_REQUIRED");
     const status = CertificationApplicationStatus[input.decision];
     await transaction.certificationApplication.update({ where: { id }, data: { status, reviewNotes: input.notes || null, reviewedById: BigInt(userId), reviewedAt: new Date() } });
     await transaction.certificationApplicationHistory.create({ data: { applicationId: id, status, notes: input.notes || null, actorUserId: BigInt(userId) } });
