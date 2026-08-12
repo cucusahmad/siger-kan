@@ -6,7 +6,7 @@ import { getCurrentUser } from "@/lib/business/get-current-business";
 
 interface Context { readonly params: Promise<{ id: string; documentId: string }> }
 
-export async function GET(_: Request, { params }: Context) {
+export async function GET(request: Request, { params }: Context) {
   try {
     const { id, documentId } = await params;
     const currentUser = await getCurrentUser();
@@ -14,7 +14,9 @@ export async function GET(_: Request, { params }: Context) {
     if (currentUser?.roleCodes.includes("PETUGAS_SERTIFIKASI")) await requireCertificationReviewer();
     else businessId = (await requireCertificationApplicant()).businessId;
     const document = await readCertificationDocument(BigInt(id), BigInt(documentId), businessId);
-    return new NextResponse(Uint8Array.from(document.bytes), { headers: { "content-type": document.mimeType, "content-length": document.size.toString(), "content-disposition": `attachment; filename*=UTF-8''${encodeURIComponent(document.originalFileName)}`, "cache-control": "private, no-store" } });
+    const previewRequested = new URL(request.url).searchParams.get("preview") === "1";
+    const disposition = previewRequested && document.mimeType.startsWith("image/") ? "inline" : "attachment";
+    return new NextResponse(Uint8Array.from(document.bytes), { headers: { "content-type": document.mimeType, "content-length": document.size.toString(), "content-disposition": `${disposition}; filename*=UTF-8''${encodeURIComponent(document.originalFileName)}`, "cache-control": "private, no-store" } });
   } catch (error: unknown) { return certificationApiError(error); }
 }
 

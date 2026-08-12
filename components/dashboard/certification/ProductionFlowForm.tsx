@@ -1,0 +1,33 @@
+"use client";
+
+import { FileText, FileUp, Plus, Trash2 } from "lucide-react";
+
+export interface ProductionFlowStep { readonly id: string; readonly activity: string; readonly responsiblePerson: string }
+export interface ProductionFlowDocument { readonly id: string; readonly name: string; readonly originalFileName: string }
+export interface ProductionFlowData { readonly method: "DYNAMIC" | "UPLOAD"; readonly steps: readonly ProductionFlowStep[]; readonly document: ProductionFlowDocument | null }
+interface Props { readonly applicationId: string; readonly value: ProductionFlowData; readonly disabled: boolean; readonly onChange: (value: ProductionFlowData) => void; readonly onNotice: (message: string) => void }
+
+const inputClass = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm outline-none focus:border-[#0FA3B1] focus:ring-2 focus:ring-[#0FA3B1]/10";
+
+export function ProductionFlowForm({ applicationId, value, disabled, onChange, onNotice }: Props) {
+  function addStep() { onChange({ ...value, steps: [...value.steps, createProductionFlowStep()] }); }
+  function updateStep(id: string, field: "activity" | "responsiblePerson", fieldValue: string) { onChange({ ...value, steps: value.steps.map((step) => step.id === id ? { ...step, [field]: fieldValue } : step) }); }
+  function removeStep(id: string) { const steps = value.steps.filter((step) => step.id !== id); onChange({ ...value, steps: steps.length ? steps : [createProductionFlowStep()] }); }
+  async function upload(file: File) {
+    const formData = new FormData(); formData.set("file", file); formData.set("documentType", "PRODUCTION_PROCESS"); formData.set("documentName", `Flowchart produksi - ${file.name}`);
+    const response = await fetch(`/api/certification-applications/${applicationId}/documents`, { method: "POST", body: formData });
+    const result = await response.json() as { success: boolean; message: string; data?: { id: string; documentName: string; originalFileName: string } };
+    onNotice(result.message);
+    if (result.success && result.data) onChange({ ...value, document: { id: result.data.id, name: result.data.documentName, originalFileName: result.data.originalFileName } });
+  }
+  return <fieldset className="md:col-span-2 rounded-2xl border border-slate-200 p-4 sm:p-5"><legend className="px-1 text-sm font-bold text-[#073B4C]">Alur proses produksi / flowchart</legend><p className="mt-1 text-sm text-slate-500">Pilih salah satu cara untuk menjelaskan alur produksi.</p>
+    <div className="mt-4 grid gap-3 sm:grid-cols-2"><MethodOption checked={value.method === "DYNAMIC"} label="Susun alur proses" description="Tambahkan tahapan produksi satu per satu." onChange={() => onChange({ ...value, method: "DYNAMIC" })}/><MethodOption checked={value.method === "UPLOAD"} label="Unggah file flowchart" description="Gunakan berkas PDF, JPG, atau PNG." onChange={() => onChange({ ...value, method: "UPLOAD" })}/></div>
+    {value.method === "DYNAMIC" ? <div className="mt-5 space-y-3"><div className="hidden grid-cols-[5rem_1fr_1fr_2.75rem] gap-3 px-1 text-xs font-bold uppercase tracking-wide text-slate-500 md:grid"><span>Proses</span><span>Kegiatan</span><span>Penanggung jawab</span><span/></div>
+      {value.steps.map((step, index) => <div key={step.id} className="grid gap-3 rounded-xl bg-slate-50 p-3 md:grid-cols-[5rem_1fr_1fr_2.75rem] md:items-start"><div className="rounded-lg bg-[#073B4C] px-3 py-2.5 text-center text-sm font-bold text-white">{index + 1}</div><label><span className="sr-only">Kegiatan proses {index + 1}</span><input value={step.activity} onChange={(event) => updateStep(step.id, "activity", event.target.value)} placeholder="Contoh: Penerimaan bahan baku" className={inputClass}/></label><label><span className="sr-only">Penanggung jawab proses {index + 1}</span><input value={step.responsiblePerson} onChange={(event) => updateStep(step.id, "responsiblePerson", event.target.value)} placeholder="Contoh: Kepala produksi" className={inputClass}/></label><button type="button" onClick={() => removeStep(step.id)} aria-label={`Hapus proses ${index + 1}`} className="inline-flex h-11 items-center justify-center rounded-xl border border-red-200 text-red-600 hover:bg-red-50"><Trash2 size={17}/></button></div>)}
+      <button type="button" onClick={addStep} className="inline-flex items-center gap-2 rounded-xl border border-[#087E8B] px-4 py-2.5 text-sm font-bold text-[#087E8B]"><Plus size={17}/> Tambah alur proses</button></div>
+    : <div className="mt-5 rounded-xl border border-dashed border-[#0FA3B1] bg-cyan-50/40 p-5">{value.document ? <div className="flex items-center gap-3"><FileText className="shrink-0 text-[#087E8B]"/><div className="min-w-0 flex-1"><p className="truncate text-sm font-bold text-[#073B4C]">{value.document.originalFileName}</p><p className="text-xs text-slate-500">Flowchart produksi telah diunggah.</p></div><a href={`/api/certification-applications/${applicationId}/documents/${value.document.id}`} className="text-sm font-bold text-[#087E8B]">Lihat</a></div> : <p className="text-sm text-slate-600">Belum ada flowchart yang diunggah.</p>}<label className={`mt-4 inline-flex items-center gap-2 rounded-xl bg-[#073B4C] px-4 py-2.5 text-sm font-bold text-white ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}><FileUp size={17}/>{value.document ? "Ganti flowchart" : "Pilih file flowchart"}<input type="file" disabled={disabled} accept=".pdf,.jpg,.jpeg,.png" className="sr-only" onChange={(event) => { const file = event.target.files?.[0]; if (file) void upload(file); event.target.value = ""; }}/></label><p className="mt-2 text-xs text-slate-500">Format PDF, JPG, atau PNG. Ukuran maksimal 10 MB.</p></div>}
+  </fieldset>;
+}
+function MethodOption({ checked, label, description, onChange }: { readonly checked: boolean; readonly label: string; readonly description: string; readonly onChange: () => void }) { return <label className={`flex cursor-pointer gap-3 rounded-xl border p-4 ${checked ? "border-[#087E8B] bg-cyan-50" : "border-slate-200"}`}><input type="radio" name="production-flow-method" checked={checked} onChange={onChange}/><span><span className="block text-sm font-bold text-[#073B4C]">{label}</span><span className="mt-1 block text-xs text-slate-500">{description}</span></span></label>; }
+export function createProductionFlowStep(): ProductionFlowStep { return { id: globalThis.crypto.randomUUID(), activity: "", responsiblePerson: "" }; }
+export const defaultProductionFlow: ProductionFlowData = { method: "DYNAMIC", steps: [{ id: "initial-production-step", activity: "", responsiblePerson: "" }], document: null };
