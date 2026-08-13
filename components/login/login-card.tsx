@@ -3,7 +3,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, LoaderCircle, LockKeyhole } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -23,13 +22,21 @@ interface LoginFormValues {
 interface LoginApiResponse {
   readonly success: boolean;
   readonly message: string;
+  readonly data?: {
+    readonly redirectTo?: string;
+  };
   readonly errors?: Readonly<Record<string, readonly string[]>>;
+}
+
+function getSafeRedirectPath(redirectTo: string | undefined): string {
+  return redirectTo?.startsWith("/") && !redirectTo.startsWith("//")
+    ? redirectTo
+    : "/dashboard";
 }
 
 const inputClassName = "min-h-14 w-full rounded-2xl border border-navy/12 bg-slate-50/70 px-4 pt-5 pb-1.5 text-sm font-semibold text-navy outline-none transition placeholder:text-transparent focus:border-ocean focus:bg-white focus:ring-4 focus:ring-ocean/8";
 
 export function LoginCard() {
-  const router = useRouter();
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, setError, resetField, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
@@ -59,8 +66,9 @@ export function LoginCard() {
         return;
       }
 
-      router.replace("/dashboard");
-      router.refresh();
+      // A document navigation prevents reverse proxies from rendering an RSC
+      // payload as plain text after authentication.
+      window.location.replace(getSafeRedirectPath(result.data?.redirectTo));
     } catch {
       setServerError("Terjadi kesalahan pada server. Silakan coba kembali.");
       resetField("password");
