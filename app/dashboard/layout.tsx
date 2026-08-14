@@ -19,6 +19,7 @@ function getInitials(fullName: string): string {
 
 export default async function DashboardLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const token = (await cookies()).get(AUTH_COOKIE_NAME)?.value;
+  
   const user = token ? await getAuthenticatedUser(token) : null;
   if (!user) redirect("/login");
 
