@@ -1,8 +1,10 @@
 "use client";
 
+import { loginAction } from "@/actions/auth";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, LoaderCircle, LockKeyhole } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -37,6 +39,7 @@ function getSafeRedirectPath(redirectTo: string | undefined): string {
 const inputClassName = "min-h-14 w-full rounded-2xl border border-navy/12 bg-slate-50/70 px-4 pt-5 pb-1.5 text-sm font-semibold text-navy outline-none transition placeholder:text-transparent focus:border-ocean focus:bg-white focus:ring-4 focus:ring-ocean/8";
 
 export function LoginCard() {
+  const router = useRouter()
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
   const { register, handleSubmit, setError, resetField, formState: { errors, isSubmitting } } = useForm<LoginFormValues>({
@@ -49,26 +52,36 @@ export function LoginCard() {
     setServerError(null);
 
     try {
-      const response = await fetch("/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(values),
-      });
-      const result = await response.json() as LoginApiResponse;
-
-      if (!response.ok) {
-        for (const field of ["email", "password"] as const) {
-          const message = result.errors?.[field]?.[0];
-          if (message) setError(field, { type: "server", message });
-        }
-        setServerError(result.message || "Login belum dapat diproses.");
+      const data = await loginAction(values)
+      
+      if (!data.success) {
+        setServerError(data.message);
         resetField("password");
-        return;
       }
 
-      // A document navigation prevents reverse proxies from rendering an RSC
-      // payload as plain text after authentication.
-      window.location.replace(getSafeRedirectPath(result.data?.redirectTo));
+      router.push('/dashboard')
+
+
+      // const response = await fetch("/api/auth/login", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(values),
+      // });
+      // const result = await response.json() as LoginApiResponse;
+
+      // if (!response.ok) {
+      //   for (const field of ["email", "password"] as const) {
+      //     const message = result.errors?.[field]?.[0];
+      //     if (message) setError(field, { type: "server", message });
+      //   }
+      //   setServerError(result.message || "Login belum dapat diproses.");
+      //   resetField("password");
+      //   return;
+      // }
+
+      // // A document navigation prevents reverse proxies from rendering an RSC
+      // // payload as plain text after authentication.
+      // window.location.replace(getSafeRedirectPath(result.data?.redirectTo));
     } catch {
       setServerError("Terjadi kesalahan pada server. Silakan coba kembali.");
       resetField("password");
