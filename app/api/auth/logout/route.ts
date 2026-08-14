@@ -1,5 +1,9 @@
 import { logout } from "@/features/auth/auth.service";
-import { AUTH_COOKIE_NAME, clearAuthCookie } from "@/lib/auth-cookie";
+import {
+  AUTH_COOKIE_NAME,
+  clearAuthCookie,
+  shouldUseSecureAuthCookie,
+} from "@/lib/auth-cookie";
 import { getRequestContext } from "@/lib/request-context";
 
 function getCookie(request: Request, name: string): string | null {
@@ -29,7 +33,7 @@ export async function POST(request: Request): Promise<Response> {
     message: "Anda telah keluar.",
     data: { redirectTo: "/login" },
   });
-  response.headers.set("Set-Cookie", clearAuthCookie());
+  response.headers.set("Set-Cookie", clearAuthCookie(shouldUseSecureAuthCookie(request)));
   response.headers.set("Cache-Control", "no-store");
   return response;
 }

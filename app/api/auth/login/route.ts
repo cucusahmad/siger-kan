@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AuthenticationError } from "@/features/auth/auth.types";
 import { login } from "@/features/auth/auth.service";
 import { loginRequestSchema } from "@/features/auth/login.schema";
-import { createAuthCookie } from "@/lib/auth-cookie";
+import { createAuthCookie, shouldUseSecureAuthCookie } from "@/lib/auth-cookie";
 import { getRequestContext } from "@/lib/request-context";
 
 const MAX_REQUEST_SIZE_BYTES = 4 * 1024;
@@ -60,7 +60,14 @@ export async function POST(request: Request): Promise<Response> {
       message: "Login berhasil.",
       data: { redirectTo: "/dashboard" },
     });
-    response.headers.set("Set-Cookie", createAuthCookie(result.accessToken, result.expiresAt));
+    response.headers.set(
+      "Set-Cookie",
+      createAuthCookie(
+        result.accessToken,
+        result.expiresAt,
+        shouldUseSecureAuthCookie(request),
+      ),
+    );
     response.headers.set("Cache-Control", "no-store");
     return response;
   } catch (error: unknown) {

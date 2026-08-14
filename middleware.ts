@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
+import { AUTH_COOKIE_NAME, shouldUseSecureAuthCookie } from "@/lib/auth-cookie";
 
 function decodeBase64Url(value: string): ArrayBuffer {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -52,7 +52,7 @@ export async function middleware(request: NextRequest) {
     const response = NextResponse.redirect(new URL("/login", request.url));
     response.cookies.set(AUTH_COOKIE_NAME, "", {
       httpOnly: true,
-      secure: true,
+      secure: shouldUseSecureAuthCookie(request),
       sameSite: "lax",
       path: "/",
       maxAge: 0,
