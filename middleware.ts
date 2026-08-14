@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-
-import { AUTH_COOKIE_NAME, shouldUseSecureAuthCookie } from "@/lib/auth-cookie";
+import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 
 function decodeBase64Url(value: string): ArrayBuffer {
   const base64 = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -47,17 +46,19 @@ async function hasValidJwt(token: string): Promise<boolean> {
 
 export async function middleware(request: NextRequest) {
   const token = request.cookies.get(AUTH_COOKIE_NAME)?.value;
+  console.log('token: ', token)
 
   if (!token || !(await hasValidJwt(token))) {
-    const response = NextResponse.redirect(new URL("/login", request.url));
-    response.cookies.set(AUTH_COOKIE_NAME, "", {
-      httpOnly: true,
-      secure: shouldUseSecureAuthCookie(request),
-      sameSite: "lax",
-      path: "/",
-      maxAge: 0,
-    });
-    return response;
+    return NextResponse.redirect(new URL("/login", request.url));
+    // const response = NextResponse.redirect(new URL("/login", request.url));
+    // response.cookies.set(AUTH_COOKIE_NAME, "", {
+    //   httpOnly: true,
+    //   secure: shouldUseSecureAuthCookie(request),
+    //   sameSite: "lax",
+    //   path: "/",
+    //   maxAge: 0,
+    // });
+    // return response;
   }
 
   return NextResponse.next();
