@@ -3,7 +3,6 @@ import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypt
 interface AccessTokenPayload {
   readonly sub: string;
   readonly sid: string;
-  readonly iat: number;
   readonly exp: number;
 }
 
@@ -44,7 +43,6 @@ export function createAccessToken(
   const payload: AccessTokenPayload = {
     sub: userId.toString(),
     sid: sessionId.toString(),
-    iat: issuedAt,
     exp: issuedAt + ttl,
   };
   const header = encode(JSON.stringify({ alg: "HS256", typ: "JWT" }));
@@ -89,7 +87,6 @@ export function verifyAccessToken(token: string): AccessTokenPayload | null {
       || !/^\d+$/.test(payload.sub)
       || typeof payload.sid !== "string"
       || !/^\d+$/.test(payload.sid)
-      || typeof payload.iat !== "number"
       || typeof payload.exp !== "number"
       || payload.exp <= now
     ) {
