@@ -1,4 +1,4 @@
-import { AuditAction, BusinessStatus } from "@/app/generated/prisma/client";
+import { AuditAction, BusinessStatus, UserStatus, UserType } from "@/app/generated/prisma/client";
 import { listBusinessDocumentsByBusinessId } from "@/lib/business-documents/document-service";
 import { prisma } from "@/lib/prisma";
 import type { RequestContext } from "@/lib/request-context";
@@ -119,10 +119,46 @@ export async function verifyAdminBusiness(actorUserId: string, businessId: strin
   if (!/^\d+$/.test(businessId)) throw new Error("NOT_FOUND");
   await prisma.$transaction(async (transaction) => {
     const id = BigInt(businessId);
-    const business = await transaction.business.findFirst({ where: { id, deletedAt: null }, select: { status: true, verifiedAt: true } });
+    const business = await transaction.business.findFirst({
+      where: { id, deletedAt: null },
+      select: {
+        status: true,
+        verifiedAt: true,
+        members: {
+          where: {
+            deletedAt: null,
+            user: { deletedAt: null, type: UserType.EXTERNAL_BUSINESS },
+          },
+          select: { user: { select: { id: true, status: true } } },
+        },
+      },
+    });
     if (!business) throw new Error("NOT_FOUND");
     const now = new Date();
     await transaction.business.update({ where: { id }, data: { status: BusinessStatus.ACTIVE, verifiedAt: now } });
+    const usersToActivate = business.members
+      .map((member) => member.user)
+      .filter((user) => user.status === UserStatus.PENDING_VERIFICATION);
+    if (usersToActivate.length > 0) {
+      await transaction.user.updateMany({
+        where: { id: { in: usersToActivate.map((user) => user.id) } },
+        data: { status: UserStatus.ACTIVE },
+      });
+      await Promise.all(usersToActivate.map((user) => transaction.auditLog.create({
+        data: {
+          actorUserId: BigInt(actorUserId),
+          businessId: id,
+          action: AuditAction.STATUS_CHANGE,
+          entityType: "USER",
+          entityId: user.id.toString(),
+          previousValue: { status: user.status },
+          newValue: { status: UserStatus.ACTIVE },
+          metadata: { reason: "BUSINESS_VERIFIED" },
+          ipAddress: context.ipAddress,
+          userAgent: context.userAgent,
+        },
+      })));
+    }
     await transaction.auditLog.create({ data: { actorUserId: BigInt(actorUserId), businessId: id, action: AuditAction.APPROVE, entityType: "BUSINESS", entityId: businessId, previousValue: { status: business.status, verifiedAt: business.verifiedAt?.toISOString() ?? null }, newValue: { status: BusinessStatus.ACTIVE, verifiedAt: now.toISOString() }, ipAddress: context.ipAddress, userAgent: context.userAgent } });
   });
 }
