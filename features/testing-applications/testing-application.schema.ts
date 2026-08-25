@@ -5,7 +5,7 @@ const idSchema = z.string().regex(/^\d+$/, "ID tidak valid.");
 const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Tanggal tidak valid.").refine((value) => value <= new Date().toISOString().slice(0, 10), "Tanggal sampling tidak boleh melebihi hari ini.");
 
 export const sampleSchema = z.object({
-  id: idSchema.optional(), sampleName: z.string().trim().min(1).max(200),
+  id: idSchema.optional(), samplesCode: optionalText(200), sampleName: z.string().trim().min(1).max(200),
   quantity: z.coerce.number().int().positive(), weight: z.coerce.number().positive(),
   weightUnit: z.enum(["Gram", "Kilogram", "Mililiter", "Liter", "Unit", "Kemasan"]),
   packaging: z.string().trim().min(1).max(120),

@@ -1287,6 +1287,7 @@ model TestingApplicationProduct {
 model TestingSample {
   id                   BigInt           @id @default(autoincrement())
   testingApplicationId BigInt           @map("testing_application_id")
+  samplesCode          String?          @map("samples_code") @db.VarChar(200)
   sampleName           String?          @map("sample_name") @db.VarChar(200)
   quantity             Int?
   weight               Decimal?         @db.Decimal(18, 3)
