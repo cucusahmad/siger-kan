@@ -1,4 +1,5 @@
 import { getCurrentUser, resolveCurrentBusiness } from "@/lib/business/get-current-business";
+import { documentValidationMessage } from "@/lib/business-documents/document-validation";
 
 export async function requireApplicant(permission: "read" | "create" | "update") {
   const user = await getCurrentUser();
@@ -51,11 +52,15 @@ export async function requireLaboratoryAnalyst() { return requireLaboratoryRole(
 
 export function applicationError(error: unknown): { readonly status: number; readonly message: string } {
   const code = error instanceof Error ? error.message : "";
+  if (["EMPTY_FILE", "FILE_TOO_LARGE", "UNSUPPORTED_FILE", "INVALID_SIGNATURE"].includes(code)) {
+    return { status: 422, message: documentValidationMessage(code) };
+  }
   const values: Readonly<Record<string, { status: number; message: string }>> = {
     UNAUTHENTICATED: { status: 401, message: "Sesi Anda telah berakhir." }, FORBIDDEN: { status: 403, message: "Anda tidak memiliki akses ke fitur ini." },
     BUSINESS_REQUIRED: { status: 403, message: "Akun belum terhubung ke profil usaha." }, NOT_FOUND: { status: 404, message: "Permohonan tidak ditemukan." },
     NOT_DRAFT: { status: 409, message: "Permohonan tidak dapat diubah pada status saat ini." }, INVALID_STATUS: { status: 409, message: "Status permohonan tidak dapat diproses." }, INVALID_MASTER: { status: 422, message: "Laboratorium atau parameter pengujian tidak valid." },
     FILE_UNAVAILABLE: { status: 404, message: "File dokumen tidak tersedia." },
+    DOCUMENT_STORAGE_UNAVAILABLE: { status: 503, message: "Penyimpanan dokumen sedang tidak tersedia. Silakan coba kembali." },
     INVALID_SHIPMENT: { status: 422, message: "Data Berita Pengiriman Sampel belum lengkap atau tidak valid." },
     INVALID_FILE: { status: 422, message: "Bukti kirim wajib berupa foto atau PDF yang valid (maksimal 5 MB per file)." },
     INVALID_REVIEW: { status: 422, message: "Data kaji ulang belum lengkap atau keputusan tidak sesuai hasil pemeriksaan." },

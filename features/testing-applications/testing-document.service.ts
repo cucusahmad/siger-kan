@@ -17,7 +17,14 @@ export async function uploadApplicationDocument(userId: string, applicationId: s
   const file = form.get("file"); const rawType = form.get("documentType"); const documentName = String(form.get("documentName") ?? "").trim();
   if (!(file instanceof File) || typeof rawType !== "string" || !types.has(rawType as ApplicationDocumentType)) throw new Error("INVALID_FILE");
   if (rawType === "LAINNYA" && !documentName) throw new Error("INVALID_FILE");
-  const bytes = new Uint8Array(await file.arrayBuffer()); const checked = validateDocumentFile(file, bytes); const fileName = sanitizeOriginalFileName(file.name); const stored = `${randomUUID()}${checked.extension}`; const relative = path.join("testing-applications", applicationId, stored).replaceAll("\\", "/"); const absolute = target(relative); await mkdir(path.dirname(absolute), { recursive: true }); await writeFile(absolute, bytes, { flag: "wx" });
+  const bytes = new Uint8Array(await file.arrayBuffer()); const checked = validateDocumentFile(file, bytes); const fileName = sanitizeOriginalFileName(file.name); const stored = `${randomUUID()}${checked.extension}`; const relative = path.join("testing-applications", applicationId, stored).replaceAll("\\", "/"); const absolute = target(relative);
+  try {
+    await mkdir(path.dirname(absolute), { recursive: true });
+    await writeFile(absolute, bytes, { flag: "wx" });
+  } catch (error: unknown) {
+    console.error("Application document could not be written", { applicationId, relative, error });
+    throw new Error("DOCUMENT_STORAGE_UNAVAILABLE", { cause: error });
+  }
   try { const document = await prisma.$transaction(async (transaction) => { const created = await transaction.applicationDocument.create({ data: { testingApplicationId: application.id, documentType: rawType as ApplicationDocumentType, documentName: documentName || null, fileName, filePath: relative, mimeType: checked.mimeType, fileSize: bytes.length } }); await transaction.auditLog.create({ data: { actorUserId: BigInt(userId), businessId: membership.businessId, action: AuditAction.CREATE, entityType: "APPLICATION_DOCUMENT", entityId: created.id.toString(), ipAddress: context.ipAddress, userAgent: context.userAgent } }); return created; }); return { ...document, id: document.id.toString(), testingApplicationId: document.testingApplicationId.toString(), fileSize: document.fileSize.toString() }; } catch (error) { await unlink(absolute).catch(() => undefined); throw error; }
 }
 
