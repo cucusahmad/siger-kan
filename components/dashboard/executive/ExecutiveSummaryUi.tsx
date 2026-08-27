@@ -4,11 +4,16 @@ import type { ExecutiveBreakdown } from "@/features/executive-dashboard/executiv
 
 const statusLabels: Readonly<Record<string, string>> = {
   ACCEPTED: "Diterima",
+  AUDIT_COMPLETED: "Audit Selesai",
+  BERLAKU: "Berlaku",
+  CORRECTIVE_ACTION_VERIFIED: "Tindakan Perbaikan Terverifikasi",
+  DICABUT: "Dicabut",
   DIAJUKAN: "Diajukan",
   DALAM_PENGUJIAN: "Dalam Pengujian",
   DITOLAK: "Ditolak",
   DRAFT: "Draf",
   KAJI_ULANG: "Kaji Ulang",
+  KEDALUWARSA: "Kedaluwarsa",
   MENUNGGU_PERSETUJUAN_UPTD: "Menunggu Persetujuan UPTD",
   MENUNGGU_SAMPEL: "Menunggu Sampel",
   PENDING: "Menunggu",
@@ -69,7 +74,7 @@ export function formatExecutiveDate(value: string): string {
 }
 
 export function statusClass(value: string): string {
-  if (["ACCEPTED", "SELESAI", "DISETUJUI"].includes(value)) return "bg-[#EAF7F0] text-[#247D55]";
-  if (["REJECTED", "DITOLAK"].includes(value)) return "bg-[#FFF0F2] text-[#B64A55]";
+  if (["ACCEPTED", "AUDIT_COMPLETED", "BERLAKU", "CORRECTIVE_ACTION_VERIFIED", "SELESAI", "DISETUJUI"].includes(value)) return "bg-[#EAF7F0] text-[#247D55]";
+  if (["DICABUT", "KEDALUWARSA", "REJECTED", "DITOLAK"].includes(value)) return "bg-[#FFF0F2] text-[#B64A55]";
   return "bg-[#FFF7E2] text-[#8A6411]";
 }

@@ -677,11 +677,39 @@ model Business {
   consultations             QualityConsultation[]
   clinicAppointments        QualityClinicAppointment[]
   certificationApplications CertificationApplication[]
+  pastCertifications        PastCertification[]
 
   @@index([name])
   @@index([status, deletedAt])
   @@index([createdAt])
   @@map("businesses")
+}
+
+model PastCertification {
+  id                  BigInt    @id @default(autoincrement())
+  businessId          BigInt    @map("business_id")
+  productName         String    @map("nama_produk") @db.VarChar(200)
+  sniNumber           String?   @map("nomor_sni") @db.VarChar(100)
+  spptSniNumber       String?   @map("nomor_sppt_sni") @db.VarChar(120)
+  skpNumber           String?   @map("nomor_skp") @db.VarChar(160)
+  spptIssuedAt        DateTime? @map("tanggal_terbit_sppt") @db.Date
+  spptExpiresAt       DateTime? @map("tanggal_berakhir_sppt") @db.Date
+  certificationStatus String    @map("status_sertifikasi") @db.VarChar(50)
+  notes               String?   @map("keterangan") @db.Text
+  documentName        String?   @map("nama_dokumen") @db.VarChar(255)
+  documentStorageKey  String?   @map("document_storage_key") @db.VarChar(500)
+  documentMimeType    String?   @map("document_mime_type") @db.VarChar(100)
+  documentSize        BigInt?   @map("document_size")
+  createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt           DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  business Business @relation(fields: [businessId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+
+  @@index([businessId, deletedAt])
+  @@index([businessId, certificationStatus])
+  @@index([spptExpiresAt])
+  @@map("past_certifications")
 }
 
 model CertificationApplication {
