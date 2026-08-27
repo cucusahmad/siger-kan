@@ -64,10 +64,19 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
   {
     label: "Data Pelaku Usaha",
     icon: "building",
-    allowedRoles: ["ADMIN_DINAS", "KEPALA_UPTD", "SUPER_ADMIN"],
+    allowedRoles: ["ADMIN_DINAS", "SUPER_ADMIN"],
     items: [
-      { label: "Daftar Pelaku Usaha", href: "/dashboard/pelaku-usaha", icon: "building", allowedRoles: ["ADMIN_DINAS", "KEPALA_UPTD", "SUPER_ADMIN"] },
+      { label: "Daftar Pelaku Usaha", href: "/dashboard/pelaku-usaha", icon: "building", allowedRoles: ["ADMIN_DINAS", "SUPER_ADMIN"] },
       { label: "Verifikasi Produk", href: "/dashboard/product-verification", icon: "clipboardCheck", allowedRoles: ["ADMIN_DINAS", "SUPER_ADMIN"], requiredPermissions: ["business.verify"] },
+    ],
+  },
+  {
+    label: "Monitoring dan Evaluasi",
+    icon: "chart",
+    allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"],
+    items: [
+      { label: "Monitoring dan Evaluasi", href: "/dashboard/monitoring", icon: "chart", allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"] },
+      { label: "Pelaku Usaha", href: "/dashboard/pelaku-usaha", icon: "building", allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"] },
     ],
   },
   {
@@ -123,7 +132,7 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     label: "Monitoring",
     icon: "chart",
     items: [
-      { label: "Monitoring dan Evaluasi", href: "/dashboard/monitoring", icon: "chart", requiredPermissions: ["monitoring.read"] },
+      { label: "Monitoring dan Evaluasi", href: "/dashboard/monitoring", icon: "chart", requiredPermissions: ["monitoring.read"], excludedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"] },
       { label: "Laporan Eksekutif", href: "/dashboard/executive-report", icon: "fileSpreadsheet", allowedRoles: ["KEPALA_DINAS", "KEPALA_UPTD"], requiredPermissions: ["report.read"] },
     ],
   },
