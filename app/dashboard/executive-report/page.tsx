@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { ExecutiveReport } from "@/components/dashboard/executive/ExecutiveReport";
 import { getAuthenticatedUser } from "@/features/auth/auth.service";
 import { assertExecutiveAccess } from "@/features/executive-dashboard/executive-dashboard.auth";
+import { getCertificationSummaryData } from "@/features/executive-dashboard/certification-summary.service";
 import { getExecutiveDashboardData } from "@/features/executive-dashboard/executive-dashboard.service";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 
@@ -23,6 +24,10 @@ export default async function ExecutiveReportPage({ searchParams }: Props) {
   } catch {
     redirect("/dashboard");
   }
-  const [data, filters] = await Promise.all([getExecutiveDashboardData(), searchParams]);
-  return <ExecutiveReport data={data} initialSection={filters.section ?? "businesses"} />;
+  const [data, certification, filters] = await Promise.all([
+    getExecutiveDashboardData(),
+    getCertificationSummaryData(),
+    searchParams,
+  ]);
+  return <ExecutiveReport data={data} certificationRows={certification.rows} initialSection={filters.section ?? "businesses"} />;
 }
