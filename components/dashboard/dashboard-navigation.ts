@@ -49,6 +49,7 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
       { label: "Ringkasan", href: "/dashboard", icon: "dashboard" },
       { label: "Ringkasan Pengujian", href: "/dashboard/testing-summary", icon: "beaker", allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"], requiredPermissions: ["report.read"] },
       { label: "Ringkasan Sertifikasi", href: "/dashboard/certification-summary", icon: "fileBadge", allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"], requiredPermissions: ["report.read"] },
+      { label: "Ringkasan Pembinaan", href: "/dashboard/coaching-summary", icon: "messageSquareHeart", allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"], requiredPermissions: ["report.read"] },
       { label: "Ringkasan Business Match", href: "/dashboard/business-match-summary", icon: "handshake", allowedRoles: ["KEPALA_UPTD", "KEPALA_DINAS"], requiredPermissions: ["report.read"] },
     ],
   },
@@ -203,6 +204,11 @@ export function getDashboardBreadcrumbs(pathname: string): readonly { readonly l
     { label: "Ringkasan Sertifikasi", href: "/dashboard/certification-summary" },
     { label: "Laporan Lengkap" },
   ];
+  if (pathname === "/dashboard/coaching-summary/report") return [
+    { label: "Dashboard", href: "/dashboard" },
+    { label: "Ringkasan Pembinaan", href: "/dashboard/coaching-summary" },
+    { label: "Laporan Lengkap" },
+  ];
   if (pathname.startsWith("/dashboard/lhu-final/")) return [
     { label: "Dashboard", href: "/dashboard" },
     { label: "Pengujian Mutu" },
@@ -241,6 +247,7 @@ export function getDashboardPageTitle(pathname: string): string {
   if (pathname === "/dashboard/testing-summary/report") return "Laporan Lengkap Pengujian";
   if (pathname === "/dashboard/business-match-summary/report") return "Laporan Lengkap Business Match";
   if (pathname === "/dashboard/certification-summary/report") return "Laporan Lengkap Sertifikasi";
+  if (pathname === "/dashboard/coaching-summary/report") return "Laporan Lengkap Pembinaan";
   if (pathname.startsWith("/dashboard/reports/")) return "Detail Laporan Pengajuan";
   if (pathname.startsWith("/dashboard/lhu-final/")) return "Detail LHU Final";
   if (pathname.startsWith("/dashboard/pelaku-usaha/")) return "Detail Pelaku Usaha";

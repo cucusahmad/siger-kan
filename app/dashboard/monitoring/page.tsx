@@ -6,6 +6,7 @@ import { MonitoringEvaluationDashboard } from "@/components/dashboard/executive/
 import { getAuthenticatedUser } from "@/features/auth/auth.service";
 import { isExecutiveUser } from "@/features/executive-dashboard/executive-dashboard.auth";
 import { getCertificationSummaryData } from "@/features/executive-dashboard/certification-summary.service";
+import { getCoachingSummaryData } from "@/features/executive-dashboard/coaching-summary.service";
 import { getExecutiveDashboardData } from "@/features/executive-dashboard/executive-dashboard.service";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 
@@ -17,10 +18,11 @@ export default async function MonitoringPage() {
   if (!user) redirect("/login");
   if (!isExecutiveUser(user)) redirect("/dashboard");
 
-  const [data, certificationData] = await Promise.all([
+  const [data, certificationData, coachingData] = await Promise.all([
     getExecutiveDashboardData(),
     getCertificationSummaryData(),
+    getCoachingSummaryData(),
   ]);
 
-  return <MonitoringEvaluationDashboard data={data} certificationData={certificationData} />;
+  return <MonitoringEvaluationDashboard data={data} certificationData={certificationData} coachingData={coachingData} />;
 }

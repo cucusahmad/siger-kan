@@ -1,15 +1,19 @@
 import {
   ArrowRight, Building2, ClipboardList, FlaskConical,
-  Handshake, PackageCheck, TrendingUp,
+  BadgeCheck, Handshake, MessageSquareHeart, PackageCheck, TrendingUp,
 } from "lucide-react";
 import Link from "next/link";
 
 import type { ExecutiveBreakdown, ExecutiveDashboardData } from "@/features/executive-dashboard/executive-dashboard.types";
+import type { CoachingSummaryData } from "@/features/executive-dashboard/coaching-summary.types";
+import type { CertificationSummaryData } from "@/features/executive-dashboard/certification-summary.types";
 
 interface ExecutiveDashboardProps {
   readonly name: string;
   readonly roleLabel: string;
   readonly data: ExecutiveDashboardData;
+  readonly coachingData: CoachingSummaryData;
+  readonly certificationData: CertificationSummaryData;
 }
 
 const icons = [Building2, PackageCheck, ClipboardList, Handshake, FlaskConical] as const;
@@ -22,7 +26,7 @@ const labelMap: Readonly<Record<string, string>> = {
   SAMPEL_DIKIRIM: "Sampel Dikirim", SAMPEL_DITERIMA: "Sampel Diterima", KAJI_ULANG: "Kaji Ulang",
 };
 
-export function ExecutiveDashboard({ name, roleLabel, data }: ExecutiveDashboardProps) {
+export function ExecutiveDashboard({ name, roleLabel, data, coachingData, certificationData }: ExecutiveDashboardProps) {
   const maxTrend = Math.max(1, ...data.trend.flatMap((item) => [item.businesses, item.products, item.matches]));
   return <div className="space-y-7">
     <header className="overflow-hidden rounded-3xl bg-navy p-7 text-white shadow-[0_18px_55px_rgba(7,59,76,.18)] sm:p-9">
@@ -64,7 +68,36 @@ export function ExecutiveDashboard({ name, roleLabel, data }: ExecutiveDashboard
         {!data.matches.length && <p className="p-10 text-center text-sm text-muted">Belum ada aktivitas business matching.</p>}
       </section>
     </div>
+
+    <div className="grid gap-6 lg:grid-cols-2">
+      <ServiceSummaryCard
+        title="Ringkasan Pembinaan"
+        description="Aktivitas klinik mutu dan konsultasi daring untuk pelaku usaha."
+        href="/dashboard/coaching-summary"
+        icon={MessageSquareHeart}
+        total={coachingData.activities.length}
+        breakdown={countBy(coachingData.activities.map(({ status }) => status))}
+      />
+      <ServiceSummaryCard
+        title="Ringkasan Sertifikasi"
+        description="Permohonan SIGER-KAN dan riwayat sertifikasi pelaku usaha."
+        href="/dashboard/certification-summary"
+        icon={BadgeCheck}
+        total={certificationData.rows.length}
+        breakdown={countBy(certificationData.rows.map(({ status }) => status))}
+      />
+    </div>
   </div>;
+}
+
+function ServiceSummaryCard({ title, description, href, icon: Icon, total, breakdown }: { readonly title: string; readonly description: string; readonly href: string; readonly icon: typeof BadgeCheck; readonly total: number; readonly breakdown: readonly ExecutiveBreakdown[] }) {
+  return <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm"><div className="flex items-start justify-between gap-4"><div className="flex gap-4"><span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-seafoam text-ocean"><Icon className="h-5 w-5" /></span><div><h2 className="text-lg font-bold text-navy">{title}</h2><p className="mt-1 text-xs leading-5 text-muted">{description}</p></div></div><p className="text-3xl font-bold text-navy">{total.toLocaleString("id-ID")}</p></div><div className="mt-6 flex flex-wrap gap-2">{breakdown.slice(0, 4).map((item) => <span key={item.label} className="rounded-full bg-slate-100 px-3 py-1.5 text-[10px] font-bold text-muted">{labelMap[item.label] ?? item.label.replaceAll("_", " ")}: {item.value}</span>)}</div>{!breakdown.length && <p className="mt-6 text-sm text-muted">Data belum tersedia.</p>}<Link href={href} className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-ocean">Lihat ringkasan lengkap <ArrowRight className="h-4 w-4" /></Link></section>;
+}
+
+function countBy(values: readonly string[]): readonly ExecutiveBreakdown[] {
+  const counts = new Map<string, number>();
+  values.forEach((value) => counts.set(value, (counts.get(value) ?? 0) + 1));
+  return [...counts].map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value);
 }
 
 function TrendBar({ value, max, color, label }: { readonly value: number; readonly max: number; readonly color: string; readonly label: string }) {

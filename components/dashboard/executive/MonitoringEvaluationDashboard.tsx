@@ -1,22 +1,25 @@
-import { ArrowRight, BadgeCheck, Building2, CheckCircle2, CircleAlert, ClipboardCheck, FlaskConical, PackageCheck } from "lucide-react";
+import { ArrowRight, BadgeCheck, Building2, CheckCircle2, CircleAlert, ClipboardCheck, FlaskConical, MessageSquareHeart, PackageCheck } from "lucide-react";
 import Link from "next/link";
 
 import type { CertificationSummaryData } from "@/features/executive-dashboard/certification-summary.types";
 import type { ExecutiveDashboardData } from "@/features/executive-dashboard/executive-dashboard.types";
+import type { CoachingSummaryData } from "@/features/executive-dashboard/coaching-summary.types";
 
 import { formatExecutiveDate, humanizeStatus, MetricCard, StatusDistribution, statusClass } from "./ExecutiveSummaryUi";
 
 interface MonitoringEvaluationDashboardProps {
   readonly data: ExecutiveDashboardData;
   readonly certificationData: CertificationSummaryData;
+  readonly coachingData: CoachingSummaryData;
 }
 interface FollowUpItem { readonly id: string; readonly title: string; readonly description: string; readonly status: string; readonly href: string; readonly category: string; readonly date: string | null; }
 
 const completedTestingStatuses = new Set(["SELESAI"]);
 const completedCertificationStatuses = new Set(["AUDIT_COMPLETED", "CORRECTIVE_ACTION_VERIFIED"]);
 const rejectedStatuses = new Set(["DITOLAK", "REJECTED"]);
+const completedCoachingStatuses = new Set(["COMPLETED", "CLOSED", "SELESAI"]);
 
-export function MonitoringEvaluationDashboard({ data, certificationData }: MonitoringEvaluationDashboardProps) {
+export function MonitoringEvaluationDashboard({ data, certificationData, coachingData }: MonitoringEvaluationDashboardProps) {
   const activeBusinesses = data.businesses.filter(({ status }) => status === "ACTIVE").length;
   const verifiedProducts = data.products.filter(({ status }) => status === "VERIFIED").length;
   const completedTesting = data.testing.filter(({ status }) => completedTestingStatuses.has(status)).length;
@@ -30,6 +33,12 @@ export function MonitoringEvaluationDashboard({ data, certificationData }: Monit
   const businessActivationRate = percentage(activeBusinesses, data.businesses.length);
   const matchingSuccessRate = percentage(acceptedMatches, data.matches.length);
   const certificationCompletionRate = percentage(completedCertifications, certificationApplications.length);
+  const completedCoaching = coachingData.activities.filter(({ status }) => completedCoachingStatuses.has(status)).length;
+  const pendingCoaching = coachingData.activities.filter(({ status }) => !completedCoachingStatuses.has(status) && !rejectedStatuses.has(status)).length;
+  const coachingCompletionRate = percentage(completedCoaching, coachingData.activities.length);
+  const coachingDistribution = [...new Set(coachingData.activities.map(({ status }) => status))]
+    .map((label) => ({ label, value: coachingData.activities.filter(({ status }) => status === label).length }))
+    .sort((a, b) => b.value - a.value);
   const certificationDistribution = [...new Set(certificationApplications.map(({ status }) => status))]
     .map((label) => ({ label, value: certificationApplications.filter(({ status }) => status === label).length }))
     .sort((a, b) => b.value - a.value);
@@ -43,6 +52,10 @@ export function MonitoringEvaluationDashboard({ data, certificationData }: Monit
       id: `certification-${item.id}`, title: item.referenceNumber, description: `${item.businessName} · ${item.productName}`,
       status: item.status, href: "/dashboard/certification-summary/report", category: "Sertifikasi", date: item.submittedOrIssuedAt,
     })),
+    ...coachingData.activities.filter(({ status }) => !completedCoachingStatuses.has(status) && !rejectedStatuses.has(status)).slice(0, 3).map((item) => ({
+      id: `coaching-${item.id}`, title: item.title, description: `${item.businessName} · ${item.consultantName ?? "Konsultan belum ditentukan"}`,
+      status: item.status, href: "/dashboard/coaching-summary/report", category: "Pembinaan", date: item.scheduledAt ?? item.createdAt,
+    })),
     ...data.businesses.filter(({ status }) => status !== "ACTIVE").slice(0, 3).map((item) => ({
       id: `business-${item.id}`, title: item.name, description: `${item.code} · ${item.region}`,
       status: item.status, href: `/dashboard/pelaku-usaha/${item.id}`, category: "Pelaku Usaha", date: item.registeredAt,
@@ -55,23 +68,25 @@ export function MonitoringEvaluationDashboard({ data, certificationData }: Monit
       <div className="mt-4 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between"><div><h1 className="text-3xl font-bold sm:text-4xl">Monitoring dan Evaluasi</h1><p className="mt-3 max-w-2xl text-sm leading-6 text-white/65">Pantau capaian layanan, identifikasi pekerjaan yang memerlukan perhatian, dan buka laporan rinci sebagai dasar evaluasi.</p></div><div className="flex flex-wrap items-center gap-3"><span className="rounded-xl bg-white/10 px-4 py-3 text-xs font-semibold text-white/75">Diperbarui {formatDateTime(data.generatedAt)}</span><Link href="/dashboard/executive-report" className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-aqua px-5 text-sm font-bold text-navy transition hover:bg-white">Laporan Eksekutif <ArrowRight className="h-4 w-4" /></Link></div></div>
     </header>
 
-    <section aria-label="Indikator monitoring" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+    <section aria-label="Indikator monitoring" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4 2xl:grid-cols-7">
       <MetricCard icon={Building2} label="Pelaku Usaha Aktif" value={activeBusinesses} detail={`${businessActivationRate}% dari ${data.businesses.length.toLocaleString("id-ID")} pelaku usaha`} tone="success" />
       <MetricCard icon={PackageCheck} label="Produk Terverifikasi" value={verifiedProducts} detail={`${productVerificationRate}% dari seluruh produk`} tone="success" />
       <MetricCard icon={FlaskConical} label="Pengujian Diproses" value={pendingTesting} detail="Pengajuan yang masih memerlukan penyelesaian" tone="warning" />
       <MetricCard icon={CheckCircle2} label="Penyelesaian Uji" value={`${testingCompletionRate}%`} detail={`${completedTesting} pengujian telah selesai`} />
       <MetricCard icon={ClipboardCheck} label="Keberhasilan Matching" value={`${matchingSuccessRate}%`} detail={`${acceptedMatches} penawaran telah diterima`} />
       <MetricCard icon={BadgeCheck} label="Sertifikasi Diproses" value={pendingCertifications} detail={`${certificationCompletionRate}% dari permohonan telah selesai`} tone="warning" />
+      <MetricCard icon={MessageSquareHeart} label="Pembinaan Diproses" value={pendingCoaching} detail={`${coachingCompletionRate}% dari kegiatan telah selesai`} tone="warning" />
     </section>
 
     <section aria-labelledby="evaluation-title" className="rounded-3xl border border-slate-200 bg-white p-6 shadow-sm sm:p-7">
       <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between"><div><p className="text-xs font-bold uppercase tracking-wider text-ocean">Evaluasi Capaian</p><h2 id="evaluation-title" className="mt-2 text-lg font-bold text-navy">Indikator Kinerja Layanan</h2></div><p className="text-xs text-muted">Persentase dihitung dari data layanan saat ini.</p></div>
-      <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-5"><EvaluationIndicator label="Aktivasi Pelaku Usaha" value={businessActivationRate} /><EvaluationIndicator label="Verifikasi Produk" value={productVerificationRate} /><EvaluationIndicator label="Penyelesaian Pengujian" value={testingCompletionRate} /><EvaluationIndicator label="Penyelesaian Sertifikasi" value={certificationCompletionRate} /><EvaluationIndicator label="Business Matching Diterima" value={matchingSuccessRate} /></div>
+      <div className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6"><EvaluationIndicator label="Aktivasi Pelaku Usaha" value={businessActivationRate} /><EvaluationIndicator label="Verifikasi Produk" value={productVerificationRate} /><EvaluationIndicator label="Penyelesaian Pengujian" value={testingCompletionRate} /><EvaluationIndicator label="Penyelesaian Sertifikasi" value={certificationCompletionRate} /><EvaluationIndicator label="Penyelesaian Pembinaan" value={coachingCompletionRate} /><EvaluationIndicator label="Business Matching Diterima" value={matchingSuccessRate} /></div>
     </section>
 
-    <div className="grid gap-6 xl:grid-cols-[.7fr_.7fr_1.2fr]">
+    <div className="grid gap-6 xl:grid-cols-2">
       <StatusDistribution title="Pipeline Pengujian Mutu" subtitle="Distribusi posisi seluruh permohonan pengujian" data={data.testingPipeline} />
       <StatusDistribution title="Pipeline Sertifikasi" subtitle="Distribusi posisi permohonan sertifikasi SIGER-KAN" data={certificationDistribution} />
+      <StatusDistribution title="Pipeline Pembinaan" subtitle="Distribusi klinik mutu dan konsultasi daring" data={coachingDistribution} />
       <section className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
         <div className="flex items-center justify-between gap-4 border-b border-slate-100 p-6"><div><h2 className="text-lg font-bold text-navy">Tindak Lanjut Prioritas</h2><p className="mt-1 text-xs text-muted">Layanan aktif dan data usaha yang memerlukan perhatian pimpinan.</p></div><CircleAlert className="h-5 w-5 shrink-0 text-gold" /></div>
         <div className="divide-y divide-slate-100">{followUps.map((item) => <Link key={item.id} href={item.href} className="group flex flex-col gap-3 p-5 transition hover:bg-slate-50 sm:flex-row sm:items-center"><span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#FFF7E2] text-[#8A6411]"><CircleAlert className="h-5 w-5" /></span><div className="min-w-0 flex-1"><div className="flex flex-wrap items-center gap-2"><p className="truncate font-bold text-navy">{item.title}</p><span className="rounded-full bg-slate-100 px-2 py-1 text-[9px] font-bold uppercase text-muted">{item.category}</span></div><p className="mt-1 truncate text-xs text-muted">{item.description}</p>{item.date && <p className="mt-1 text-[11px] text-muted">{formatExecutiveDate(item.date)}</p>}</div><span className={`w-fit rounded-full px-3 py-1.5 text-[10px] font-bold ${statusClass(item.status)}`}>{humanizeStatus(item.status)}</span><ArrowRight className="hidden h-4 w-4 text-slate-400 transition group-hover:translate-x-1 group-hover:text-ocean sm:block" /></Link>)}</div>

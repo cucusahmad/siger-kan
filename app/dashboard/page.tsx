@@ -22,6 +22,8 @@ import { getAdminDashboardData } from "@/features/admin-dinas/admin-dinas.servic
 import { getAuthenticatedUser } from "@/features/auth/auth.service";
 import { isExecutiveUser } from "@/features/executive-dashboard/executive-dashboard.auth";
 import { getExecutiveDashboardData } from "@/features/executive-dashboard/executive-dashboard.service";
+import { getCoachingSummaryData } from "@/features/executive-dashboard/coaching-summary.service";
+import { getCertificationSummaryData } from "@/features/executive-dashboard/certification-summary.service";
 import { AUTH_COOKIE_NAME } from "@/lib/auth-cookie";
 
 export const metadata: Metadata = { title: "Ringkasan" };
@@ -52,9 +54,13 @@ export default async function DashboardPage() {
   }
 
   if (isExecutiveUser(user)) {
-    const data = await getExecutiveDashboardData();
+    const [data, coachingData, certificationData] = await Promise.all([
+      getExecutiveDashboardData(),
+      getCoachingSummaryData(),
+      getCertificationSummaryData(),
+    ]);
     const roleLabel = user.roleCodes.includes("KEPALA_DINAS") ? "Dashboard Kepala Dinas" : "Dashboard Kepala UPTD";
-    return <ExecutiveDashboard name={user.fullName} roleLabel={roleLabel} data={data} />;
+    return <ExecutiveDashboard name={user.fullName} roleLabel={roleLabel} data={data} coachingData={coachingData} certificationData={certificationData} />;
   }
 
   return (
