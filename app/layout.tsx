@@ -7,6 +7,7 @@ const applicationUrl = new URL(
 
 export const metadata: Metadata = {
   metadataBase: applicationUrl,
+  applicationName: "SIGER-KAN",
   title: "SIGER-KAN | Sistem Informasi Terintegrasi Gerai Mutu dan Perikanan",
   description:
     "Platform terintegrasi untuk layanan pengujian mutu, sertifikasi, konsultasi, pengetahuan, dan kemitraan usaha perikanan.",
@@ -22,7 +23,16 @@ export const metadata: Metadata = {
     description:
       "Platform terintegrasi untuk layanan pengujian mutu, sertifikasi, konsultasi, pengetahuan, dan kemitraan usaha perikanan.",
   },
-  icons: { icon: "/siger-kan-mark.svg" },
+  manifest: "/manifest.webmanifest",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "SIGER-KAN",
+  },
+  icons: {
+    icon: "/siger-kan-mark.svg",
+    apple: "/siger-kan-mark.svg",
+  },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
