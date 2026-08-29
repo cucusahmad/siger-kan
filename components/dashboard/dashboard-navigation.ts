@@ -136,7 +136,6 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
       { label: "Katalog Produk", href: "/dashboard/product-catalog", icon: "packageSearch", allowedRoles: externalRoles, requiredPermissions: ["business.read"], requiresBusinessMembership: true },
       { label: "Penawaran", href: "/dashboard/offers", icon: "handshake", allowedRoles: externalRoles, requiredPermissions: ["business.read"], requiresBusinessMembership: true },
       { label: "Business Matching", href: "/dashboard/business-matching", icon: "handshake", allowedRoles: externalRoles },
-      { label: "AI Knowledge Base", href: "/dashboard/knowledge-base", icon: "bookOpen", allowedRoles: externalRoles },
     ],
   },
   {
@@ -153,6 +152,13 @@ export const dashboardNavigation: readonly DashboardNavigationGroup[] = [
     items: [
       { label: "Profil Saya", href: "/dashboard/profile", icon: "user" },
       { label: "Pengaturan Akun", href: "/dashboard/settings", icon: "settings" },
+    ],
+  },
+  {
+    label: "AI Knowledge",
+    icon: "bookOpen",
+    items: [
+      { label: "Konsultasi AI", href: "/dashboard/knowledge-base", icon: "bookOpen" },
     ],
   },
 ] as const;
